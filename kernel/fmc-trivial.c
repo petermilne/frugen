@@ -38,7 +38,7 @@ int t_probe(struct fmc_device *fmc)
 	if (index < 0)
 		return -EINVAL; /* not our device: invalid */
 
-	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
+	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", IRQF_SHARED);
 	if (ret < 0)
 		return ret;
 	/* ignore error code of call below, we really don't care */
