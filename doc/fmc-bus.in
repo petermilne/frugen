@@ -41,7 +41,7 @@
 @titlepage
 @title FMC Bus Abstraction for Linux
 @subtitle Version 1.0, @value{update-month}
-@subtitle Implementing a bus abstraction for fmc mezzanines
+@subtitle A kernel bus to support FMC mezzanines and carriers
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
 @headings single
