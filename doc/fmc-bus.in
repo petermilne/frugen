@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month July 2012
+@set update-month October 2012
 
 @finalout
 
@@ -68,8 +68,22 @@ We have a carrier for PCI-E called @i{SPEC} and one for VME called
 (usually plugged on a SPEC card), controlled through Etherbone,
 developed by GSI.
 
-Currently, code and documentation for the FMC bus is part of the
-@i{spec-sw} project at @code{ohwr.org}.
+Code and documentation for the FMC bus was born as part of the
+@i{spec-sw} project, but now it lives in its own project. Other
+projects, i.e. software support for the various carriers, should
+include this as a submodule.
+
+The most up to date version of code and documentation is always
+available from the repository you can clone from:
+
+@example
+   git://ohwr.org/fmc-projects/fmc-bus.git (read-only)
+   git@@ohwr.org:fmc-projects/fmc-bus.git (read-write for developers)
+@end example
+
+Selected versions of the documentation, as well as complete tar
+archives for selected revisions are placed to the @i{Files} section of
+the project: @url{http://www.ohwr.org/projects/fmc-bus/files}
 
 @menu
 * What is a Linux Bus::         
