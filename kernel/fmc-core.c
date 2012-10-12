@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fmc.h>
-#include "spec.h"
 
 static int fmc_check_version(unsigned long version, const char *name)
 {

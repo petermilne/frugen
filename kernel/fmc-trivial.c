@@ -4,7 +4,6 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/fmc.h>
-#include "spec.h"
 
 static struct fmc_driver t_drv; /* initialized later */
 
