@@ -58,3 +58,6 @@ clean: terse
 
 install:
 
+# add the other unused targets, so the rule in ../Makefile works
+modules modules_install:
+
