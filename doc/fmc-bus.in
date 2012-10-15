@@ -40,7 +40,7 @@
 
 @titlepage
 @title FMC Bus Abstraction for Linux
-@subtitle Version 1.0, @value{update-month}
+@subtitle @value{update-month}
 @subtitle A kernel bus to support FMC mezzanines and carriers
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -61,7 +61,7 @@ I/O devices, in the context of White Rabbit and related hardware.
 
 In our I/O environments we need to write drivers for each mezzanine
 card, and such drivers must work independent of the carrier being used.
-To achieve this, we abstract the FMC interface
+To achieve this, we abstract the FMC interface.
 
 We have a carrier for PCI-E called @i{SPEC} and one for VME called
 @i{SVEC}, but more are planned.  Also, we support stand-alone devices
@@ -154,7 +154,7 @@ the current structure defining a device. Please note that all
 the machinery is in place but some details may still change in the future.
 For this reason, there is a version field at the beginning of the structure.
 As usual, the minor number will change for compatible changes (like a new
-flag) and the minor number will increase when an incompatible change
+flag) and the major number will increase when an incompatible change
 happens (for example, a change in layout of some @i{fmc} data structures).
 Device writers should just set it to the
 value @t{FMC_VERSION}, and be ready to get back @t{-EINVAL} at
@@ -233,7 +233,7 @@ The individual methods perform the following tasks:
 	These functions access FPGA registers by whatever means the
         carrier offers. They are not expected to fail, and most of the time
         they will just make a memory access to the host bus. If the
-        carrier provids a @i{base} pointer, the driver may use direct
+        carrier provides a @i{base} pointer, the driver may use direct
         access through that pointer. For this reason the header offers
         the inline functions @i{fmc_readl} and @i{fmc_writel} that
         access @i{base} if the respective method is NULL. A driver that
