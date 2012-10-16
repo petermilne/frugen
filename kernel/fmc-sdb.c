@@ -25,13 +25,14 @@ static uint32_t __sdb_rd(struct fmc_device *fmc, unsigned long address,
 }
 
 static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
-					     unsigned long address, int level)
+					     unsigned long sdb_addr,
+					     unsigned long reg_base, int level)
 {
 	uint32_t onew;
 	int i, j, n, convert = 0;
 	struct sdb_array *arr, *sub;
 
-	onew = fmc_readl(fmc, address);
+	onew = fmc_readl(fmc, sdb_addr);
 	if (onew == SDB_MAGIC) {
 		/* Uh! If we are little-endian, we must convert */
 		if (SDB_MAGIC != __be32_to_cpu(SDB_MAGIC))
@@ -42,7 +43,7 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 		return ERR_PTR(-ENOENT);
 	}
 	/* So, the magic was there: get the count from offset 4*/
-	onew = __sdb_rd(fmc, address + 4, convert);
+	onew = __sdb_rd(fmc, sdb_addr + 4, convert);
 	n = __be16_to_cpu(*(uint16_t *)&onew);
 	arr = kzalloc(sizeof(*arr), GFP_KERNEL);
 	if (arr) {
@@ -63,22 +64,24 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 
 		for (j = 0; j < sizeof(arr->record[0]); j += 4) {
 			*(uint32_t *)((void *)(arr->record + i) + j) =
-				__sdb_rd(fmc, address + (i * 64) + j, convert);
+				__sdb_rd(fmc, sdb_addr + (i * 64) + j, convert);
 		}
 		r = &arr->record[i];
 		arr->subtree[i] = ERR_PTR(-ENODEV);
 		if (r->empty.record_type == sdb_type_bridge) {
-			uint64_t subaddr = address + r->bridge.sdb_child;
-			struct sdb_component *c;
+			struct sdb_component *c = &r->bridge.sdb_component;
+			uint64_t subaddr = __be64_to_cpu(r->bridge.sdb_child);
+			uint64_t newbase = __be64_to_cpu(c->addr_first);
 
-			c = &r->bridge.sdb_component;
-			subaddr = __be64_to_cpu(subaddr);
-			sub = __fmc_scan_sdb_tree(fmc, subaddr, level + 1);
+			subaddr += reg_base;
+			newbase += reg_base;
+			sub = __fmc_scan_sdb_tree(fmc, subaddr, newbase,
+						  level + 1);
 			arr->subtree[i] = sub; /* may be error */
 			if (IS_ERR(sub))
 				continue;
 			sub->parent = arr;
-			sub->baseaddr = __be64_to_cpu(c->addr_first);
+			sub->baseaddr = newbase;
 		}
 	}
 	return arr;
@@ -89,7 +92,7 @@ int fmc_scan_sdb_tree(struct fmc_device *fmc, unsigned long address)
 	struct sdb_array *ret;
 	if (fmc->sdb)
 		return -EBUSY;
-	ret = __fmc_scan_sdb_tree(fmc, address, 0);
+	ret = __fmc_scan_sdb_tree(fmc, address, 0 /* regs */, 0);
 	if (IS_ERR(ret))
 		return PTR_ERR(ret);
 	fmc->sdb = ret;
