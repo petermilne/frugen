@@ -598,7 +598,388 @@ EEPROM image, at least if your mezzanines are being used in the White Rabbit
 environment. For this reason the TLV format is not expected to be used much
 and is not expected to be developed further.
 
+@c ##########################################################################
+@node Writing your FMC Driver
+@chapter Writing your FMC Driver
 
+This chapter includes some suggestions about to write your own drivers
+for FMC carriers or mezzanines.  It is the outcome of the experience I
+gathered working with @i{fine-delay} and @code{wr-nic.ko} (currently
+part of @i{spec-sw}, as I write this).
+
+Driver writing is a known problem, which @i{only} requires you to know
+your hardware and your frameworks. However, the choice to split the
+overall FMC software design into several projects, and thus several
+repositories, opens a new set of problems, related to how the projects
+relate one another.
+
+A typical carrier driver will be built against a specific version
+of this @i{fmc-bus} package. A mezzanine driver, in addition, will
+most often be developed under a specific carrier and will most likely
+depend on features of the the specific carrier, at least initially.
+
+To make the problem worse, a single host in your operating environment
+(``in production'') may need tp run several FMC devices (thus several
+FMC drivers), that expect to be using different versions of the
+base packages -- according to when and where they have been written.
+
+@c ==========================================================================
+@node Versions of the Bus Abstraction
+@section Versions of the Bus Abstraction
+
+This @i{fmc-bus} package includes a @i{version} field at the beginning
+of the two data structures, @code{fmc_device} and @code{fmc_driver}.
+
+This version number is there to prevent mismatches between the
+information passed by the FMC modules and how it is used by the core
+code.  The version is not expected to change often, because the code
+base is already pretty stable, and we don't expect to face many new
+problems.
+
+In general, if you experience a mismatch, you should just recompile
+your carrier or mezzanine driver with the same version of @i{fmc-bus}
+that you are running as a kernel module. If one of the structures has
+a new field in there, the default of @i{all-bits-as-zero} will just
+work. If your running @code{fmc.ko} is older than what the driver
+wants to use, you may need to upgrade the core module, as the driver
+wants to use data fields that are unknown to the core.  We foresee to
+never introduce backward incompatibilities, so that step should be
+safe as well.
+
+If your working place uses several drivers based on @i{fmc-bus} and
+you feature non-trivial dependencies, the safest best is using the
+most recent @i{fmc-bus} release you can find, and recompile all the
+rest against that version.  Again, please remember that version
+changes are not frequent events.
+
+@sp 1
+
+To help clarifying how the versions is used, here is an example.
+
+Pretty often, the mezzanine drivers need to register a new device of
+some kind: a network card, an input device, or something else.
+Several mezzanines may be installed in the same host computer, and we
+need a way to tell which is which: using sequential numbering is not
+reliable. The problem for diagnostics is already solved by the
+@i{hwdev} field in the device structure: mezzanine drivers use
+@code{dev_err(fmc->hwdev)} so the message includes proper identifiers
+(e.g. the bus and slot numbers for PCI cards).
+
+When we moved the @i{fine-delay} driver from being a SPEC-only driver
+to a mezzanine @i{fmc-bus} driver, we found we needed an identifier to
+register our top-level device (here, a ZIO driver).  The right
+solution to this problems is for carrier drivers to already spell out
+an identifier in the @code{fmc_device} structure, so mezzanine drivers
+can use it.  This requires a version change.
+
+@b{Note:} this change is not currently active, we are waiting to find
+other issues and cluster all required changes in a single version
+bump.
+
+Drivers designed to work with an older versions of @i{fmc-bus} can
+just be recompiled: they won't exploit the new feature but they will
+work nonetheless. In this case, an old carrier driver will unknowingly
+register 0 as its identifier (and mezzanine drivers use ``0'' to
+trigger sequential enumeration).  An old mezzanine driver will not use
+the carrier-provided identifier and will use whatever
+technique it used under the older @i{fmc-bus} version.
+
+While writing the @i{fine-delay} driver, we chose to use some special
+SPEC-dependent code to extract the identifier, until the core offered
+the new field. Carrier-specific code is explained in @ref{Suggestions
+for Mezzanine Drivers}.
+
+@c ==========================================================================
+@node Git Submodule Crash Course
+@section Git Submodule Crash Course
+
+The mechanism we suggest to manage dependencies is @i{git submodule}.
+It is already in place in the existing FMC drivers, but using it
+requires some knowledge.  This is some basic information about
+submodules, assuming you are already accustomed to simple @i{git}
+repositories. (Tutorials exists, but they are usually too detailed
+as a quick start).
+
+If you are just a user of @i{fmc-bus}, not developing drivers, you
+can jump to the next section.
+
+@unnumberedsubsec Quick Summary
+
+To make a long story short: a git repository can know that it uses a
+checkout of another git repository, at a specific version.  The
+@i{submodule} is checked out using a commit identifier, so it must be
+considered read-only by the @i{supermodule} (the top-level project).
+
+If you checked out a specific branch of the submodule, the supermodule
+will record the specific commit at the time of the checkout, not the
+branch it was using: branches are not followed automatically nor even
+recorded in the supermodule.
+
+@unnumberedsubsec Supermodules and Submodules
+
+Then, here's the longer story. When you @i{clone} the supermodule, the
+submodules won't be automatically cloned (unless you use @code{git
+clone --recursive}, that nobody does by default and is not generally
+good for @i{fmc-bus} drivers).  To check out the submodules you need
+to @code{git submodule init; git submodule update} or equivalent).
+
+Whenever you modify the content of a checked-out submodule, it is
+reported by @code{git status}, that considers the directory where the
+submodule lives as a single file.  Your established use of @code{git
+status} will thus continue to work.  The messages you may get (if you
+changed the submodule) are either @code{modified content} or
+@code{untracked content}, like this (in the @i{fine-delay} mezzanine
+driver):
+
+@example
+   morgana$ echo > fmc-bus/new-file
+   morgana$ echo >> spec-sw//Makefile
+   morgana$ git status
+   [...]
+   #       modified:   fmc-bus (untracked content)
+   #       modified:   spec-sw (modified content)
+@end example
+
+If you wonder where does git store the checkout information
+for the submodule, it lives in the "tree object" (i.e. directory)
+where the submodule is checked-out.
+
+@example
+   morgana$ git ls-tree  HEAD | grep commit
+   160000 commit dc30ce998628084c4402291e6052c7feb77be424  fmc-bus
+   160000 commit 35480a19bc562ebfa76f4663d41d026ff1b9df29  spec-sw
+@end example
+
+If you want a different commit in the submodule (for example, you
+fixed a bug in it), this is tracked by a commit in the supermodule,
+because the hosting @i{tree} must be modified to record the new
+submodule commit. It is correct, in general, to have a commit in the
+supermodule that just updates the commit identifier of the submodule.
+Sometimes, however, you commit the new submodule's version together
+with changes in the supermodule that use it (like they were parts of
+the same package).
+
+@unnumberedsubsec How to Commit to a Submodule
+
+There are two situations where you need to touch a submodule: either
+you find a problem while working in the supermodule or you want to
+use a newer version of the submodule.
+
+In the latter case: the submodule has new useful commits and we want
+to use them in the supermodule: just check-out the new upstream commit
+in the submodule and then commit in the supermodule.
+
+The former case is trickier: since the submodule is a read-only
+checkout of another repository, normal users are not expected to
+commit to a project from the place where it is just a submodule.
+However, it sometimes happen when your multi-repository project is
+still young, like @i{fmc-bus} as of 2012.
+
+The directory of the submodule looks like a normal @t{git clone}, so
+you can work in it in your usual way. However, the submodule is always
+referencing a read-only upstream repository (because everybody should
+be able to get the code), so you must add a new 
+``@i{remote}'' git reference, like this:
+
+@example
+   morgana$ git remote -v
+   origin  git://ohwr.org/fmc-projects/fmc-bus.git (fetch)
+   origin  git://ohwr.org/fmc-projects/fmc-bus.git (push)
+   morgana$ git remote add work $HOME/ohwr/fmc-bus
+   morgana$ git remote -v
+   origin  git://ohwr.org/fmc-projects/fmc-bus.git (fetch)
+   origin  git://ohwr.org/fmc-projects/fmc-bus.git (push)
+   work    /home/rubini/ohwr/fmc-bus (fetch)
+   work    /home/rubini/ohwr/fmc-bus (push)
+@end example
+
+Now you can work normally and push to @i{work} (if you don't push, you
+may loose the commit when working in the supermodule, which doesn't
+consider the submodule a working directory).  If you end up using the
+new commit in the supermodule, you must commit the supermodule too as
+described above. Finally, you must ensure you push upstream the
+submodule before you push the supermodule that uses the new commit.
+
+
+@c ==========================================================================
+@node Submodules and ``make install''
+@section Git Submodules and ``make install''
+
+In the context of @i{fmc-bus} drivers a mezzanine driver relied on the
+core @t{fmc.ko} and the carrier driver.  The user who downloads the
+mezzanine driver would like to ``@i{make && make install}'' and find
+everything installed.
+
+While this approach is easily achieved, but arranging for @t{make
+install} to install the submodule as well, this will introduce
+problems for more advanced users, who are using different mezzanines
+in the same host system. This is going to be pretty common, because
+you can driver FMC mezzanines with @i{Etherbone}, so drivers in a
+single host won't be limited to the few PCI or VME slots of your
+desktop or crate.
+
+The suggested behaviour for an FMC driver package, is to use
+submodules for the driver it depends on, but only install its own
+kernel modules. If everything is installed automatically, we risk
+overwriting already installed modules with a different version,
+and we can't know if the user really wanted that -- those other
+modules may be already debugged as part of another set of drivers.
+
+The suggested last output line of a @code{make install} should be like
+this:
+
+@example
+   WARNING: Consider "make prereq_install"
+@end example
+
+Accompanying documentation should explain the issue. If a user only
+needs to run this mezzanine, installing the prerequisite is a safe
+move, and the warning message should not appear any more if you
+@t{make install} again -- technical users are expected to sometimes
+edit and reinstall the specific driver, but not the ones it depends
+on.
+
+@c ==========================================================================
+@node Suggestions for Mezzanine Drivers
+@section Suggestions for Mezzanine Drivers
+
+A mezzanine driver should include @i{fmc-bus} and the relevant carrier
+drivers as submodules, in order to easily access the relevant headers.
+It should compile the submodules as well, in order to find the
+external symbols and not report scaring warnings at compile time.
+While in a truly-portable mezzanine driver you won't need to access
+headers of the carrier driver, it's still good practice to carry it as
+a submodule, so the user can just @code{make prereq_install} and have
+everything that's needed to run the hardware item.
+
+The examples shown here is taken from @i{fine-delay}, the first
+mezzanine driver that uses this multi-level approach. The driver also
+uses ZIO as a submodule, but this is stripped from the examples as
+not relevant to @i{fmc-bus}.  The device driver itself is
+in the @i{kernel} subdirectory, as the package also features @i{tools}
+and @i{lib}. This is expected to be common, so all relevant code is shown:
+adapting to a driver without subdirectories is easy.
+
+First of all, the toplevel @code{Makefile} should have all the
+standard targets, and run all of them in each subdirectory.  Moreover,
+since most users don't run ``@code{git submodule init}'' or similar
+commands, it should be done automatically the first time to avoid
+errors that may be difficult to diagnose.
+
+These are the relevant lines of the @code{Makefile}:
+
+@smallexample
+  .PHONY: gitmodules prereq prereq_install prereq_install_warn
+  all clean modules install modules_install: gitmodules
+          [...]
+
+  gitmodules:
+          @@test -d fmc-bus/doc || echo "Checking out submodules"
+          @@test -d fmc-bus/doc || git submodule update --init
+
+  # The user can override, using environment variables, all these three:
+  FMC_BUS ?= fmc-bus
+  SPEC_SW ?= spec-sw
+  SUBMOD = $(FMC_BUS) $(SPEC_SW)
+
+  prereq:
+          for d in $(SUBMOD); do $(MAKE) -C $$d || exit 1; done
+
+  prereq_install_warn:
+          @@test -f .prereq_installed || \
+                  echo -e "\n\n\tWARNING: Consider \"make prereq_install\"\n"
+
+  prereq_install:
+          for d in $(SUBMOD); do $(MAKE) -C $$d modules_install || exit 1; done
+  	touch .prereq_installed
+@end smallexample
+
+The snippet above implements the following:
+
+@itemize @bullet
+@item It checks out submodules if they are not checked out.
+@item It allows the user to override the submodules and use custom versions.
+@item It implements the warning at installation time.
+@item It has @code{prereq_install}, which stops the warning above.
+@end itemize
+
+The module-specific @code{Makefile} must take care of finding the headers
+at compile time and the external symbols at link time. This is
+implemented using the standard @i{Kbuild} variables. Again, 
+environment variable can be used to override the submodules with custom
+clones of the repositories:
+
+@smallexample
+  LINUX ?= /lib/modules/$(shell uname -r)/build
+  SPEC_SW ?= $(M)/../spec-sw
+  FMC_BUS ?= $(M)/../fmc-bus
+
+  KBUILD_EXTRA_SYMBOLS := \
+          $(FMC_BUS)/kernel/Module.symvers
+
+
+  ccflags-y = \
+          -I$(SPEC_SW)/kernel \
+          -I$(SPEC_SW)/kernel/include \
+          -I$(FMC_BUS)/kernel/include \
+          -I$M
+@end smallexample
+
+If the mezzanine driver is truly portable (which @i{fine-delay} is not,
+as I write this), you won't need to include from @code{$(SPEC_SW)}, which
+is only includes for the user's convenience. If it is truly not portable,
+you'll also need to add the carrier to the extra-symbols variable.
+
+@c ==========================================================================
+@node Suggestions for Carrier Drivers
+@section Suggestions for Carrier Drivers
+
+A carrier driver should include @i{fmc-bus} as a submodule, in order
+to easily access the relevant header files.  It should also compile
+the submodule, to access the symbols exported by @code{fmc.ko} and
+avoid unpleasant compilation warnings.
+
+However, the repository of a carrier driver may be used as a submodule
+of a mezzanine driver (see @ref{Suggestions for Mezzanine Drivers}),
+and this brings in a complication.  In general you don't want
+@i{fmc-bus} to be replicated several time if you clone a mezzanine
+driver: so you should not checkout the submodule if both packages
+are submodules of another driver.  Actually, this is also why
+the @code{gitmodules:} rule in the mezzanine driver doesn't use
+@code{--recursive}.
+
+The following example is taken from @code{spec-sw}, the first carrier
+driver we developed for this bus abstraction:
+
+@smallexample
+  FMC_DRV ?= $(./check-fmc-bus)
+
+  DIRS = $(FMC_DRV) kernel tools
+
+  all clean modules install modules_install:
+          for d in $(DIRS); do $(MAKE) -C $$d $@ || exit 1; done
+@end smallexample
+
+As you see, the variable @code{FMC_BUS} is conditionally assigned, so
+the user can override it from the environment. Moreover, the
+default value is returned by a local shell script.
+
+The script checks whether both this directory and @code{fmc-bus} are
+submodules of something else. If this is the case, @code{FMC_BUS} is
+taken from the parent directory, otherwise it is taken from the local
+subdirectory (the submodule).
+
+@c ==========================================================================
+@node Work in Progress
+@section Work in Progress
+
+Unfortunately, these procedures may still miss some bits as the system
+increases in complexity and number of users -- for example, I may not
+being compiling all pieces by default, or miss some dependencies or
+command line arguments.
+
+As the last bits are fixed I'll update this chapter, and I'll remove
+this section when everything is verified by a larger user base.
 
 
 
