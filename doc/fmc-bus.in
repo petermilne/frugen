@@ -805,60 +805,66 @@ submodule before you push the supermodule that uses the new commit.
 @node Submodules and ``make install''
 @section Git Submodules and ``make install''
 
-In the context of @i{fmc-bus} drivers a mezzanine driver relied on the
+In the context of @i{fmc-bus} drivers a mezzanine driver relies on the
 core @t{fmc.ko} and the carrier driver.  The user who downloads the
 mezzanine driver would like to ``@i{make && make install}'' and find
 everything installed.
 
-While this approach is easily achieved, but arranging for @t{make
-install} to install the submodule as well, this will introduce
+While this approach is easily achieved by arranging for @t{make
+install} to install the submodules as well, this will introduce
 problems for more advanced users, who are using different mezzanines
 in the same host system. This is going to be pretty common, because
-you can driver FMC mezzanines with @i{Etherbone}, so drivers in a
+you can drive FMC mezzanines with @i{Etherbone}, so drivers in a
 single host won't be limited to the few PCI or VME slots of your
-desktop or crate.
+desktop computer or crate.
 
-The suggested behaviour for an FMC driver package, is to use
-submodules for the driver it depends on, but only install its own
-kernel modules. If everything is installed automatically, we risk
+The suggested behaviour for an FMC driver package is using
+submodules for the drivers it depends on. However, it should
+only install its own
+kernel modules. If everything were installed automatically, we risked
 overwriting already installed modules with a different version,
 and we can't know if the user really wanted that -- those other
-modules may be already debugged as part of another set of drivers.
+modules may be already installed and verified as part of another set of drivers.
 
-The suggested last output line of a @code{make install} should be like
-this:
+The suggested @code{make install} rule, thus, only installs the
+current package (the mezzanine or carrier driver the user checked
+out) and prints this final line, explained by accompanying documentation.
 
 @example
    WARNING: Consider "make prereq_install"
 @end example
 
-Accompanying documentation should explain the issue. If a user only
-needs to run this mezzanine, installing the prerequisite is a safe
-move, and the warning message should not appear any more if you
-@t{make install} again -- technical users are expected to sometimes
+If a user is running a host with this mezzanine alone, then installing
+the prerequisites is a safe move.  In this case
+the warning message should not appear if you
+@t{make install} again after you did @code{make prereq_install} once.
+That's because technical users are expected to sometimes
 edit and reinstall the specific driver, but not the ones it depends
-on.
+on -- such drivers are considered stable infrastructure, like the kernel
+or the compiler.
 
 @c ==========================================================================
 @node Suggestions for Mezzanine Drivers
 @section Suggestions for Mezzanine Drivers
 
 A mezzanine driver should include @i{fmc-bus} and the relevant carrier
-drivers as submodules, in order to easily access the relevant headers.
-It should compile the submodules as well, in order to find the
+drivers as submodules, in order to easily access the needed headers.
+A mezzanine driver should compile the submodules as well, in order to find the
 external symbols and not report scaring warnings at compile time.
+
 While in a truly-portable mezzanine driver you won't need to access
-headers of the carrier driver, it's still good practice to carry it as
-a submodule, so the user can just @code{make prereq_install} and have
+headers of the carrier drivers, it's still good practice to carry them as
+submodules, so the user can just @code{make prereq_install} and have
 everything that's needed to run the hardware item.
 
-The examples shown here is taken from @i{fine-delay}, the first
-mezzanine driver that uses this multi-level approach. The driver also
-uses ZIO as a submodule, but this is stripped from the examples as
-not relevant to @i{fmc-bus}.  The device driver itself is
-in the @i{kernel} subdirectory, as the package also features @i{tools}
-and @i{lib}. This is expected to be common, so all relevant code is shown:
-adapting to a driver without subdirectories is easy.
+The examples shown here are taken from @i{fine-delay}, the first
+mezzanine driver that uses this multi-level approach. That specific driver also
+uses ZIO as a submodule, but this has been stripped from the examples as
+not relevant to @i{fmc-bus}.  The device driver itself lives
+in the @i{kernel} subdirectory, because the package also features @i{tools}
+and @i{lib}. This is expected to be common, so all code shown below uses
+this convention; adapting to a driver without subdirectories is
+expected to be easy.
 
 First of all, the toplevel @code{Makefile} should have all the
 standard targets, and run all of them in each subdirectory.  Moreover,
@@ -891,19 +897,26 @@ These are the relevant lines of the @code{Makefile}:
 
   prereq_install:
           for d in $(SUBMOD); do $(MAKE) -C $$d modules_install || exit 1; done
-  	touch .prereq_installed
+          touch .prereq_installed
 @end smallexample
 
 The snippet above implements the following:
 
 @itemize @bullet
-@item It checks out submodules if they are not checked out.
+
+@item It checks out submodules if they are not already checked out.
+
 @item It allows the user to override the submodules and use custom versions.
+      by setting environment variables (@code{FMC_BUS} and @code{SPEC_SW}).
+
 @item It implements the warning at installation time.
+
 @item It has @code{prereq_install}, which stops the warning above.
+
 @end itemize
 
-The module-specific @code{Makefile} must take care of finding the headers
+The driver-specific makefile (here ``@code{kernel/Makefile}'')
+must take care of finding the headers
 at compile time and the external symbols at link time. This is
 implemented using the standard @i{Kbuild} variables. Again, 
 environment variable can be used to override the submodules with custom
@@ -926,9 +939,13 @@ clones of the repositories:
 @end smallexample
 
 If the mezzanine driver is truly portable (which @i{fine-delay} is not,
-as I write this), you won't need to include from @code{$(SPEC_SW)}, which
-is only includes for the user's convenience. If it is truly not portable,
-you'll also need to add the carrier to the extra-symbols variable.
+as I write this), you won't need to point @code{ccflags-y}
+to @code{$(SPEC_SW)}, which
+is only compiled and installed for the user's convenience.
+
+On the other hand, your mezzanine driver might also need to point
+@code{KBUILD_EXTRA_SYMBOLS} to the carrier driver, whereas the example
+above only uses symbols from @i{fmc-bus}.
 
 @c ==========================================================================
 @node Suggestions for Carrier Drivers
@@ -940,19 +957,25 @@ the submodule, to access the symbols exported by @code{fmc.ko} and
 avoid unpleasant compilation warnings.
 
 However, the repository of a carrier driver may be used as a submodule
-of a mezzanine driver (see @ref{Suggestions for Mezzanine Drivers}),
-and this brings in a complication.  In general you don't want
-@i{fmc-bus} to be replicated several time if you clone a mezzanine
-driver: so you should not checkout the submodule if both packages
+of a mezzanine driver, which in turn already has @i{fmc-bus} as a
+submodule (see @ref{Suggestions for Mezzanine Drivers}).  In general
+you don't want @i{fmc-bus} to be replicated several times at different
+directory levels if you clone a mezzanine driver.  If, by chance,
+the user of the mezzanine driver changes something in the @i{fmc-bus},
+nobody can easily say which one is the one being re-installed.
+
+For this reason, the carrier driver should not checkout the submodule
+if both the carrier itself and the @i{fmc-bus} package
 are submodules of another driver.  Actually, this is also why
-the @code{gitmodules:} rule in the mezzanine driver doesn't use
-@code{--recursive}.
+the @code{gitmodules:} rule suggested above for the mezzanine driver
+doesn't use @code{--recursive}.
 
 The following example is taken from @code{spec-sw}, the first carrier
 driver we developed for this bus abstraction:
 
 @smallexample
-  FMC_DRV ?= $(./check-fmc-bus)
+  FMC_DRV ?= $(shell ./check-fmc-bus)
+  export FMC_DRV
 
   DIRS = $(FMC_DRV) kernel tools
 
@@ -961,11 +984,13 @@ driver we developed for this bus abstraction:
 @end smallexample
 
 As you see, the variable @code{FMC_BUS} is conditionally assigned, so
-the user can override it from the environment. Moreover, the
+the user can override it from the environment as usual. Moreover, the
 default value is returned by a local shell script.
 
-The script checks whether both this directory and @code{fmc-bus} are
-submodules of something else. If this is the case, @code{FMC_BUS} is
+The script @code{check-fmc-bus} verifies
+whether both this directory and @code{fmc-bus} are
+submodules of some other git repository living in the parent directory.
+If this is the case, @code{FMC_BUS} is
 taken from the parent directory, otherwise it is taken from the local
 subdirectory (the submodule).
 
@@ -973,10 +998,15 @@ subdirectory (the submodule).
 @node Work in Progress
 @section Work in Progress
 
-Unfortunately, these procedures may still miss some bits as the system
-increases in complexity and number of users -- for example, I may not
-being compiling all pieces by default, or miss some dependencies or
-command line arguments.
+Unfortunately, these procedures still miss some bits, that will be
+dealt with as the system increases in complexity and number of users.
+
+For example, the ``@i{gitmodules}'' target is missing from carrier
+drivers, so a developer working directly on the carrier code should be
+aware of submodules, and run @code{git submodule update --init} by
+hand after a fresh checkout.  This is not yet performed by default
+because I need to differentiate when the carrier driver is the main
+checkout from when it is a submodule.
 
 As the last bits are fixed I'll update this chapter, and I'll remove
 this section when everything is verified by a larger user base.
