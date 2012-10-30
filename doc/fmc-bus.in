@@ -1011,7 +1011,18 @@ checkout from when it is a submodule.
 As the last bits are fixed I'll update this chapter, and I'll remove
 this section when everything is verified by a larger user base.
 
+@c ##########################################################################
+@node Portability
+@chapter Portability
 
+This package should be portable. However I didn't test it on a wide
+variety of system.  I used it on a 32-bit x86 host, running version 2.6.32
+and 3.4 of the kernel.
+
+I verified that it compiles without any warning from version 2.6.27 up
+to 3.5, on a 32-bit x86 processor. On 2.6.26 it fails for changes in
+the Linux device structures. On 2.6.25 and earlier it fails much more
+badly.
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle

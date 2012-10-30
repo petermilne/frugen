@@ -80,6 +80,14 @@ struct fmc_gpio {
 #define FMC_GPIO_USER(x)	((x) + 0x1400)	/*  256 of them */
 /* We may add SCL and SDA, or other roles if the need arises */
 
+/* GPIOF_DIR_IN etc are missing before 3.0. copy from <linux/gpio.h> */
+#ifndef GPIOF_DIR_IN
+#  define GPIOF_DIR_OUT   (0 << 0)
+#  define GPIOF_DIR_IN    (1 << 0)
+#  define GPIOF_INIT_LOW  (0 << 1)
+#  define GPIOF_INIT_HIGH (1 << 1)
+#endif
+
 /*
  * The operations are offered by each carrier and should make driver
  * design completely independent of th carrier. Named GPIO pins may be
