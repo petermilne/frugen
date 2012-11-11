@@ -31,9 +31,10 @@ struct fmc_gpio t_gpio[] = {
 int t_probe(struct fmc_device *fmc)
 {
 	int ret;
-	int index;
+	int index = 0;
 
-	index = fmc->op->validate(fmc, &t_drv);
+	if (fmc->op->validate)
+		index = fmc->op->validate(fmc, &t_drv);
 	if (index < 0)
 		return -EINVAL; /* not our device: invalid */
 
@@ -44,7 +45,9 @@ int t_probe(struct fmc_device *fmc)
 	fmc->op->gpio_config(fmc, t_gpio, ARRAY_SIZE(t_gpio));
 
 	/* Reprogram, if asked to. ESRCH == no filename specified */
-	ret = fmc->op->reprogram(fmc, &t_drv,"");
+	ret = -ESRCH;
+	if (fmc->op->reprogram)
+		ret = fmc->op->reprogram(fmc, &t_drv,"");
 	if (ret == -ESRCH)
 		ret = 0;
 	if (ret < 0)

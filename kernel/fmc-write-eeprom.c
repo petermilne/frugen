@@ -105,7 +105,7 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
  */
 int fwe_probe(struct fmc_device *fmc)
 {
-	int err, index;
+	int err, index = 0;
 	const struct firmware *fw;
 	struct device *dev = fmc->hwdev;
 	char *s;
@@ -115,7 +115,13 @@ int fwe_probe(struct fmc_device *fmc)
 			KBUILD_MODNAME);
 		return -ENODEV;
 	}
-	index = fmc->op->validate(fmc, &fwe_drv);
+	if (fmc->op->validate)
+		index = fmc->op->validate(fmc, &fwe_drv);
+	if (index >= fwe_file_n) {
+		dev_err(dev, "%s: device returned index %i out of range\n",
+			KBUILD_MODNAME, index);
+		return -ENODEV;
+	}
 	s = fwe_file[index];
 	if (!s) {
 		dev_err(dev, "%s: no filename given: not programming\n",
