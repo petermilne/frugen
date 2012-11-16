@@ -5,7 +5,7 @@ import array
 import struct
 import os
 
-lib = cdll.LoadLibrary(os.path.dirname(__file__) + "/libipmi/libipmi.so")
+lib = cdll.LoadLibrary(os.path.dirname(__file__) + "/libipmi.so")
 
 class c_CommonHeader(Structure):
     _fields_ = [

@@ -13,7 +13,7 @@ import time
 import datetime
 import os
 
-from fmc_eeprom import *
+from libipmi.fmc_eeprom import *
 
 
 """
