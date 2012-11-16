@@ -349,7 +349,7 @@ int ipmi_write(void)
 	ipmi_common_header_write();
 
         // Write board info area, padding (to 8 byte multiple) is done inside the write function
-        bia->area_len = board_info_area_get_size(NULL);
+        bia->area_len = board_info_area_get_size(NULL)/8;
 	ipmi_board_info_area_write();
 
         // Write multi-record area
