@@ -1,14 +1,13 @@
 #!   /usr/bin/env   python
-#    coding: utf8
+#-*-python-*-
 
-# Copyright CERN, 2011
+# Copyright CERN, 2011, 2012
 # Author: Matthieu Cattin <matthieu.cattin@cern.ch>
-# Licence: GPL v2 or later.
-# Website: http://www.ohwr.org
-# Last modifications: 16/5/2012
+# Modified and broken by Alessandro Rubini, still learning python
 
 # Import system modules
 import sys
+import getopt
 import time
 import datetime
 import os
@@ -17,24 +16,71 @@ from libipmi.fmc_eeprom import *
 
 
 """
-Tests IPMI formatting library.
+Creates a FRU binary file to be written into FMC EEPROM
 
 """
 
-def main (default_directory='.'):
+def main (argv0, argv):
 
-    # Constants declaration
-    PART_NUMBER = "EDA-02063-V5-0"
-    SERIAL = "HCCFFIA___-CR000003"
-    EEPROM_BIN_FILENAME = "eeprom_content.out"
-    EEPROM_BIN_FILENAME = os.path.join(default_directory, EEPROM_BIN_FILENAME)
-    EEPROM_SIZE = 8192 # in Bytes
+    # Defaults
+    FRU_VENDOR = "fmc-example"
+    FRU_NAME = "mezzanine"
+    FRU_SERIAL = "0001"
+    FRU_PART = "sample-part"
+    FRU_OUTPUT = "/dev/stdout"
+    verbose = 0
 
+    # Override defaults with environment variables
+    try:
+        FRU_VENDOR = os.environ['FRU_VENDOR']
+    except:
+        pass
+    try:
+        FRU_NAME = os.environ['FRU_NAME']
+    except:
+        pass
+    try:
+        FRU_SERIAL = os.environ['FRU_SERIAL']
+    except:
+        pass
+    try:
+        FRU_PART = os.environ['FRU_PART']
+    except:
+        pass
+    try:
+        FRU_OUTPUT = os.environ['FRU_OUTPUT']
+    except:
+        pass
+    if os.getenv("FRU_VERBOSE") is not None:
+        verbose = 1
 
-    #==================================================
-    # Serial number
-    serial = SERIAL
-    print "Board's serial number: %s\n" % serial
+    # Override defaults with command line arguments
+    try:
+        opts, args = getopt.getopt(argv,"v:n:s:p:o:",["--help"])
+    except getopt.GetoptError:
+        print "fru-generator: wrong arguments"
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == "--help":
+            print "fru-generator: no help yet"
+            sys.exit(1)
+        if opt == '-v':
+            FRU_VENDOR = arg
+        if opt == '-n':
+            FRU_NAME = arg
+        if opt == '-s':
+            FRU_SERIAL = arg
+        if opt == '-p':
+            FRU_PART = arg
+        if opt == '-o':
+            FRU_OUTPUT = arg
+
+    if verbose:
+        print "VENDOR = " + FRU_VENDOR
+        print "NAME = " + FRU_NAME
+        print "SERIAL = " + FRU_SERIAL
+        print "PART = " + FRU_PART
+        print "OUTPUT = " + FRU_OUTPUT
 
     #==================================================
     # Calculate number of minutes since 0:00 1/1/96
@@ -43,19 +89,14 @@ def main (default_directory='.'):
     diff_date = now_date - ref_date
     total_seconds = diff_date.days * 86400 + diff_date.seconds
     current_date = int(total_seconds//60)
-    print "Current date/time: %d minutes (since 0:00 1/1/96)\n" % current_date
-
-    # Manufacturiing date = current date
-    print "Manufacturing date : %d 0x%06X" % (current_date, current_date)
     mfg_date = current_date
 
     #==================================================
     # Create Board Info Area
     # FRU field is used to store the date of generation of the eeprom content
     # This could be used later to determine if the content has to be udated (bug fix, ...)
-    print "EEPROM content generated: %s\n" % now_date
     fru = "%s" % now_date
-    bia = BoardInfoArea(mfg_date, "CERN", "FmcAdc100m14b4cha", serial, PART_NUMBER, fru)
+    bia = BoardInfoArea(mfg_date, FRU_VENDOR, FRU_NAME, FRU_SERIAL, FRU_PART, fru)
 
     #==================================================
     # Multirecords Area
@@ -86,54 +127,14 @@ def main (default_directory='.'):
     oem = OEMRecord(0, 1, 3, 1, 68, 0, 0, 0, 0, 0, 0)
 
     #==================================================
-    # Internal Use Area
-    # Takes an array of byte as parameter
-    iua_data = [0x1,0x2,0x3,0x4]
-    iua = InternalUseArea(iua_data)
-
-    #==================================================
     # Write eeprom content to a binary file
-    ipmi_open_file(EEPROM_BIN_FILENAME)
+    ipmi_open_file(FRU_OUTPUT)
     #ipmi_set(bia, dcload, dcout, oem, iua)
     ipmi_set(bia, dcload, dcout, oem)
     ipmi_write()
     ipmi_close_file()
 
-    #==================================================
-    # Read eeprom content from binary file
-    f_eeprom = open(EEPROM_BIN_FILENAME, "rb")
-    eeprom_data = []
-    byte = f_eeprom.read(1) # reads one byte
-    while byte:
-        eeprom_data.append(ord(byte))
-        byte = f_eeprom.read(1) # reads one byte
-    f_eeprom.close()
-
-    print "Raw EEPROM data:"
-    i = 0
-    for data in eeprom_data:
-        if i%8 == 0:
-            print "0x%02X (%3d) : %02X" % (i, i, data),
-        else:
-            print "%02X" % (data),
-        i += 1
-        if i%8 == 0:
-            print ""
-
-    print("\n")
-
-    dsum = 0
-    for data in eeprom_data[158:162]:
-        dsum += data
-        print("0x%02X  0x%X" % (data, dsum))
-    print("\n\nsum: 0x%02X" % dsum)
-    checksum = (0xff & (1 + ~dsum))
-    print("calculated checksum: 0x%02X" % checksum)
-    print("data checksum      : 0x%02X" % eeprom_data[162])
-    print("")
-    print("check data: 0x%02X" % (dsum + eeprom_data[162]))
-    print("check data: 0x%02X" % (dsum + checksum))
 
 
 if __name__ == '__main__' :
-    main()
+    main(sys.argv[0], sys.argv[1:])
