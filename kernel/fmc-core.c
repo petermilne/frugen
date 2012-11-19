@@ -27,16 +27,6 @@ static int fmc_check_version(unsigned long version, const char *name)
 	return 0;
 }
 
-static int fmc_match(struct device *dev, struct device_driver *drv)
-{
-	//struct fmc_driver *fdrv = to_fmc_driver(drv);
-	//struct fmc_device *fdev = to_fmc_device(dev);
-	//const struct fmc_device_id *t = fdrv->id_table;
-
-	/* Currently, return 1 every time, until we define policies */
-	return 1;
-}
-
 static int fmc_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	//struct fmc_device *fdev = to_fmc_device(dev);
@@ -85,7 +75,10 @@ struct device fmc_bus = {
 	.init_name = "fmc",
 };
 
-/* Functions for client modules */
+/*
+ * Functions for client modules follow
+ */
+
 int fmc_driver_register(struct fmc_driver *drv)
 {
 	if (fmc_check_version(drv->version, drv->driver.name))
@@ -101,32 +94,62 @@ void fmc_driver_unregister(struct fmc_driver *drv)
 }
 EXPORT_SYMBOL(fmc_driver_unregister);
 
-int fmc_device_register(struct fmc_device *fdev)
+/* When a device is registered, we must read the eeprom and parse FRU */
+int fmc_device_register(struct fmc_device *fmc)
 {
-	if (fmc_check_version(fdev->version, fdev->carrier_name))
-		return -EINVAL;
-	device_initialize(&fdev->dev);
-	if (!fdev->dev.release)
-		fdev->dev.release = __fmc_release;
-	if (!fdev->dev.parent)
-		fdev->dev.parent = &fmc_bus;
-	fdev->dev.bus = &fmc_bus_type;
-	{
-		static int i;
+	static int fmc_index; /* a "unique" name for lame devices */
+	uint32_t device_id;
+	int ret;
 
-		/* FIXME: the name */
-		dev_set_name(&fdev->dev, "fmc-%04x", i++);
+	if (fmc_check_version(fmc->version, fmc->carrier_name))
+		return -EINVAL;
+
+	/* make sure it is not initialized, or it complains */
+	memset(&fmc->dev.kobj, 0, sizeof(struct kobject));
+
+	device_initialize(&fmc->dev);
+	if (!fmc->dev.release)
+		fmc->dev.release = __fmc_release;
+	if (!fmc->dev.parent)
+		fmc->dev.parent = &fmc_bus;
+
+	/* Fill the identification stuff (may fail) */
+	fmc_fill_id_info(fmc);
+
+	fmc->dev.bus = &fmc_bus_type;
+
+	/* The name is from mezzanine info or carrier info. Or 0,1,2.. */
+	device_id = fmc->device_id;
+	if (!device_id) {
+		dev_warn(fmc->hwdev, "No device_id filled, using index\n");
+		device_id = fmc_index++;
 	}
-	return device_add(&fdev->dev);
+	if (!fmc->mezzanine_name) {
+		dev_warn(fmc->hwdev, "No mezzanine_name found\n");
+		dev_set_name(&fmc->dev, "fmc-%04x", device_id);
+	} else {
+		dev_set_name(&fmc->dev, "%s-%04x", fmc->mezzanine_name,
+			     device_id);
+	}
+	ret = device_add(&fmc->dev);
+	if (ret < 0) {
+		dev_err(fmc->hwdev, "Failed in registering \"%s\"\n",
+			fmc->dev.kobj.name);
+		fmc_free_id_info(fmc);
+		return ret;
+	}
+	return 0;
 }
 EXPORT_SYMBOL(fmc_device_register);
 
-void fmc_device_unregister(struct fmc_device *fdev)
+void fmc_device_unregister(struct fmc_device *fmc)
 {
-	device_del(&fdev->dev);
-	put_device(&fdev->dev);
+	device_del(&fmc->dev);
+	fmc_free_id_info(fmc);
+	put_device(&fmc->dev);
 }
 EXPORT_SYMBOL(fmc_device_unregister);
+
 
 /* Init and exit are trivial */
 static int fmc_init(void)

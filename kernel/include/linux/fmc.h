@@ -23,15 +23,48 @@ struct fmc_driver;
  * to check the version of the data structures we receive.
  */
 
-#define FMC_MAJOR	1
+#define FMC_MAJOR	2
 #define FMC_MINOR	0
 #define FMC_VERSION	((FMC_MAJOR << 16) | FMC_MINOR)
 #define __FMC_MAJOR(x)	((x) >> 16)
 #define __FMC_MINOR(x)	((x) & 0xffff)
 
+/*
+ * The device identification, as defined by the IPMI FRU (Field Replaceable
+ * Unit) includes four different stings to describe the device. Here we
+ * only match the "Board Manutacturer" and the "Board Product Name",
+ * ignoring the "Board Serial Number" and "Board Part Number". All 4 are
+ * expected to be strings, so they are treated as zero-terminated C strings.
+ * Unspecified string (NULL) means "any", so if both are unspecified this
+ * is a catch-all driver. So null entries are allowed and we use array
+ * and length. This is unlike pci and usb that use null-terminated arrays
+ */
+struct fmc_fru_id {
+	char *manufacturer;
+	char *product_name;
+};
+
+/*
+ * If the FPGA is already programmed (think Etherbone or the second
+ * SVEC slot), we can match on SDB devices in the memory image. This
+ * match uses an array of devices that must all be present, and the
+ * match is based on vendor and device only. Further checks are expected
+ * to happen in the probe function. Zero meas "any" and catch-all is allowed.
+ */
+struct fmc_sdb_one_id {
+	uint64_t vendor;
+	uint32_t device;
+};
+struct fmc_sdb_id {
+	struct fmc_sdb_one_id *cores;
+	int cores_nr;
+};
+
 struct fmc_device_id {
-	/* FIXME: the device ID must be defined according to eeprom contents */
-	uint64_t unique_id;
+	struct fmc_fru_id *fru_id;
+	int fru_id_nr;
+	struct fmc_sdb_id *sdb_id;
+	int sdb_id_nr;
 };
 
 #define FMC_MAX_CARDS 16 /* That many with the same matching driver... */
@@ -42,7 +75,7 @@ struct fmc_driver {
 	struct device_driver driver;
 	int (*probe)(struct fmc_device *);
 	int (*remove)(struct fmc_device *);
-	const struct fmc_device_id *id_table;
+	const struct fmc_device_id id_table;
 	/* What follows is for generic module parameters */
 	int busid_n;
 	int busid_val[FMC_MAX_CARDS];
@@ -108,11 +141,19 @@ struct fmc_operations {
 	int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
 
-/* The device reports all information needed to access hw */
+/*
+ * The device reports all information needed to access hw.
+ *
+ * If we have eeprom_len and not contents, the core reads it.
+ * Then, parsing of identifiers is done by the corem which fills fmc_fru_id..
+ * Similarly a device that must be matched based on SDB cores must
+ * fill the entry point and the core will scan the bus (FIXME: sdb match)
+ */
 struct fmc_device {
 	unsigned long version;
 	unsigned long flags;
-	struct fmc_device_id id;	/* for the match function */
+	struct module *owner;		/* char device must pin it */
+	struct fmc_fru_id id;		/* for EEPROM-based match */
 	struct fmc_operations *op;	/* carrier-provided */
 	int irq;			/* according to host bus. 0 == none */
 	int eeprom_len;			/* Usually 8kB, may be less */
@@ -120,9 +161,13 @@ struct fmc_device {
 	char *carrier_name;		/* "SPEC" or similar, for special use */
 	void *carrier_data;		/* "struct spec *" or equivalent */
 	__iomem void *base;		/* May be NULL (Etherbone) */
+	unsigned long memlen;		/* Used for the char device */
 	struct device dev;		/* For Linux use */
 	struct device *hwdev;		/* The underlying hardware device */
+	unsigned long sdbfs_entry;
 	struct sdb_array *sdb;
+	uint32_t device_id;		/* Filled by the device */
+	char *mezzanine_name;		/* Built by fmc-core (allocated) */
 	void *mezzanine_data;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
@@ -130,6 +175,7 @@ struct fmc_device {
 #define FMC_DEVICE_HAS_GOLDEN		1
 #define FMC_DEVICE_HAS_CUSTOM		2
 #define FMC_DEVICE_NO_MEZZANINE		4
+#define FMC_DEVICE_MATCH_SDB		8 /* fmc-core must scan sdb in fpga */
 
 /* If the carrier offers no readl/writel, use base address */
 static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
@@ -162,5 +208,11 @@ extern int fmc_driver_register(struct fmc_driver *drv);
 extern void fmc_driver_unregister(struct fmc_driver *drv);
 extern int fmc_device_register(struct fmc_device *tdev);
 extern void fmc_device_unregister(struct fmc_device *tdev);
+
+/* Internal cross-calls between files; not exported to otther modules */
+extern int fmc_match(struct device *dev, struct device_driver *drv);
+extern int fmc_fill_id_info(struct fmc_device *fmc);
+extern void fmc_free_id_info(struct fmc_device *fmc);
+
 
 #endif /* __LINUX_FMC_H__ */

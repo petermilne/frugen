@@ -8,7 +8,9 @@ obj-m += fmc-trivial.o
 obj-m += fmc-write-eeprom.o
 
 fmc-y = fmc-core.o
+fmc-y += fmc-match.o
 fmc-y += fmc-sdb.o
+fmc-y += fru-parse.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
