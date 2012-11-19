@@ -1,0 +1,34 @@
+
+# This is an example configuration file for FMC eeprom generation.
+# The contents reflect what I used to program my specimen of the
+# "fine delay" card (official name: FmcDelay1ns4cha).
+
+# SDB records live at offset 256 (the bus looks there and at other
+# powers of two, but our FRU file is known to be small)
+
+.
+	position = 256
+
+# The IPMI-FRU material is in the "IPMI-FRU" file. It has been
+# generated using ../fru-generator like this:
+#
+# ../fru-generator -v CERN -n FmcDelay1ns4cha -s proto-0 \
+#   -p EDA-02267-V3 > IPMI-FRU
+
+IPMI-FRU
+	position = 0
+
+# we have a "name" file, that includes "fdelay". But no configuration is
+# needed.
+
+# Finally, the fine-delay wants configuration at offset 0x1800, because
+# SDB was added to the drivers later, and initially a known address was
+# used. So prepare a writable file in there. The driver looks for "fd-c".
+# The size of calibration information is around 100 bytes.
+
+fd-calib
+	position = 0x1800
+	maxsize = 256
+	write = 1
+
+
