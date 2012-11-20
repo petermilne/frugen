@@ -4,6 +4,7 @@ LINUX ?= /lib/modules/$(shell uname -r)/build
 ccflags-y += -I$M/include
 
 obj-m = fmc.o
+obj-m += fmc-fakedev.o
 obj-m += fmc-trivial.o
 obj-m += fmc-write-eeprom.o
 

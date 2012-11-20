@@ -456,6 +456,42 @@ your device has GPIO capabilities in the hot path, you should consider
 using the kernel's GPIO mechanisms.
 
 @c ==========================================================================
+@node fmc-fakedev
+@section fmc-fakedev
+
+This package includes a software-only device, called @t{fmc-fakedev}.
+Unlike the @sc{spec} driver, which creates an @sc{fmc} device for each
+PCI cards it manages, this module creates a single instance of its
+device.
+
+It is meant as the simplest possible example of how a driver should be
+written, and it includes a fake @sc{eeprom} image (built using the
+tools described in @ref{FMC Identification}).
+
+You can also use this device to verify the match algorithms, by
+asking it to test your own @sc{eeprom} image. You can provide the image by
+means of the @t{eeprom=} module parameter: the new @sc{eeprom} image
+is loaded, as usual, by means of the @i{firmware loader}.
+This example shows the defaults and a custom @sc{eeprom} image:
+
+@smallexample
+   spusa.root# insmod fmc-fakedev.ko
+   [  158.355436]  fake-fmc: Manufacturer: fake-vendor
+   [  158.360106]  fake-fmc: Product name: fake-design-for-testing
+   spusa.root# rmmod fmc-fakedev
+   spusa.root# insmod fmc-fakedev.ko eeprom=fdelay-eeprom.bin
+   [  197.182682]  fake-fmc: Manufacturer: CERN
+   [  197.186764]  fake-fmc: Product name: FmcDelay1ns4cha
+   spusa.root# rmmod fmc-fakedev
+@end smallexample
+
+After loading the device, you can use the @i{write_ee} method do
+modify its own internal fake @sc{eeprom}: whenever the image is
+overwritten starting at offset 0, the module will unregister and
+register again the @sc{fmc} device. This is shown later, in
+section @ref{fmc-write-eeprom}.
+
+@c ==========================================================================
 @node FMC Device Incompatibilities
 @section FMC Device Incompatibilities
 
@@ -729,10 +765,32 @@ This is a real example: that writes 5 bytes at position 0x110:
    [19983.414615] spec 0000:03:00.0: write_eeprom: success
 @end smallexample
 
-Please note that you'll most likely want to use @sc{sdb}FS to build your
+Please note that you'll most likely want to use @sc{sdbfs} to build your
 @sc{eeprom} image, at least if your mezzanines are being used in the White Rabbit
 environment. For this reason the TLV format is not expected to be used much
 and is not expected to be developed further.
+
+If you want to experiment with reflashing fake @sc{eeprom} devices,
+you cn use the @t{fmc-fakedev.ko} module (see @ref{fmc-fakedev}).
+Whenever you change the image starting at offset 0, it will deregister
+and register again after two seconds.  Please note, however, that if
+@i{fmc-write-eeprom} is still loaded, the system will associate it to
+the new device, which will be reprogrammed and thus will be unloaded
+after two seconds.  The following example removes the module after
+it reflashed @i{fakedev} the first time.
+
+@smallexample
+spusa.root# insmod fmc-fakedev.ko
+   [   72.984733]  fake-fmc: Manufacturer: fake-vendor
+   [   72.989434]  fake-fmc: Product name: fake-design-for-testing
+   spusa.root# insmod fmc-write-eeprom.ko busid=0 file=fdelay-eeprom.bin; \
+       rmmod fmc-write-eeprom
+   [  130.874098]  fake-fmc: Matching a generic driver (no ID)
+   [  130.887845]  fake-fmc: programming 6155 bytes
+   [  130.894567]  fake-fmc: write_eeprom: success
+   [  132.895794]  fake-fmc: Manufacturer: CERN
+   [  132.899872]  fake-fmc: Product name: FmcDelay1ns4cha
+@end smallexample
 
 @c ##########################################################################
 @node Writing your FMC Driver
