@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month October 2012
+@set update-month November 2012
 
 @finalout
 
@@ -56,19 +56,19 @@
 @top Introduction
 
 This document describes the implementation of the @i{fmc} bus for
-Linux.  FMC (FPGA Mezzanine Carrier) is the standard we use for our
+Linux.  @sc{fmc} (FPGA Mezzanine Card) is the standard we use for our
 I/O devices, in the context of White Rabbit and related hardware.
 
 In our I/O environments we need to write drivers for each mezzanine
 card, and such drivers must work independent of the carrier being used.
-To achieve this, we abstract the FMC interface.
+To achieve this, we abstract the @sc{fmc} interface.
 
-We have a carrier for PCI-E called @i{SPEC} and one for VME called
-@i{SVEC}, but more are planned.  Also, we support stand-alone devices
-(usually plugged on a SPEC card), controlled through Etherbone,
+We have a carrier for PCI-E called @sc{spec} and one for VME called
+@sc{svec}, but more are planned.  Also, we support stand-alone devices
+(usually plugged on a @sc{spec} card), controlled through Etherbone,
 developed by GSI.
 
-Code and documentation for the FMC bus was born as part of the
+Code and documentation for the @sc{fmc} bus was born as part of the
 @i{spec-sw} project, but now it lives in its own project. Other
 projects, i.e. software support for the various carriers, should
 include this as a submodule.
@@ -85,14 +85,38 @@ Selected versions of the documentation, as well as complete tar
 archives for selected revisions are placed to the @i{Files} section of
 the project: @url{http://www.ohwr.org/projects/fmc-bus/files}
 
-@menu
-* What is a Linux Bus::         
-* FMC Device::                  
-* FMC Driver::                  
-* The API Offered by Carriers::  
-@end menu
-
 @c ##########################################################################
+@node Basic Concepts
+@chapter Basic Concepts
+
+@c ==========================================================================
+@node What is a FMC
+@chapter What is FMC
+
+@sc{fmc}, as said, stands for ``@i{FPGA Mezzanine Card}''. It is a standard
+developed by the VME consortium called VITA (@i{VMEbus International
+Trade Association} and ratified by ANSI, the American National
+Standard Institute.  The official documentation is called ``ANSI-VITA
+57.1''.
+
+The @sc{fmc} card is an almost square @sc{psb}, around 70x75 millimeters, that
+is called @i{mezzanine} in this document.  It usually lives plugged
+into into another @sc{psb} for power supply and control; such bigger
+circuit board is called @i{carrier} from now on, and a single carrier
+may host more than one mezzanine.
+
+In the typical application the mezzanine is mostly analogical while
+the carrier is mostly digital, and hosts an @sc{fpga} that must be
+programmed to match the specific mezzanine and the desired
+application. Thus, you may need to load different @sc{fpga} images to
+drive different instances of the same mezzanine.
+
+@sc{fmc}, as such, is not a bus in the usual meaning of the term, because
+most carriers have only one connector, and carriers with several
+connectors have completely separate electrical connections to them.
+This package, however, implements a bus as a software abstraction.
+
+@c ==========================================================================
 @node What is a Linux Bus
 @chapter What is a Linux Bus
 
@@ -107,12 +131,29 @@ can also use @i{sysfs} to change the binding of drivers to devices
 (for example, if more than one driver can drive the same device you
 may want to force the choice).
 
+@c ==========================================================================
+@node What is SDB
+@chapter What is SDB
+
+@sc{sdb} (Self Describing Bus) is a set of data structures that we use for
+enumerating the internal structure of an @sc{fpga} image. We also use it as
+a filesystem inside the @sc{fmc} @sc{eeprom}.
+
+@sc{sdb} is not mandatory for use of this @sc{fmc} kernel bus, but if you have @sc{sdb}
+this package can make good use of it.  @sc{sdb} itself is developed
+in the @i{fpga-config-space} OHWR project. The link to the repository
+is @url{git://ohwr.org/hdl-core-lib/fpga-config-space.git} and what
+is used in this project lives in the @i{sdbfs} subdirectory in there.
+
+@sc{sdb} support for @sc{fmc} is described in @ref{FMC Identification} and
+@ref{SDB Support}
+
 @c ##########################################################################
 @node Functions Exported by fmc.ko
 @chapter Functions Exported by fmc.ko
 
-The FMC core exports the usual 4 functions that are needed for a bus
-to work:
+The @sc{fmc} core exports the usual 4 functions that are needed for a bus
+to work, and a few more:
 
 @smallexample
    int fmc_driver_register(struct fmc_driver *drv);
@@ -134,20 +175,22 @@ the one that describes a driver is detailed in @ref{FMC Driver}.
 @node FMC Device
 @chapter FMC Device
 
-Within the Linux bus framework, the FMC device is created and registered by the
-carrier driver. For example, the PCI driver for the SPEC card fills a
-data structure for each SPEC that it drives, and registers an
-associated FMC device.  The SVEC driver can do exactly the same for
-the VME carrier (actually, it should do it twice, because the SVEC
-carries two FMC mezzanines).  Similarly, an Etherbone driver will be
-able to register its own FMC devices, offering communication primitives
+Within the Linux bus framework, the @sc{fmc} device is created and registered by the
+carrier driver. For example, the PCI driver for the @sc{spec} card fills a
+data structure for each @sc{spec} that it drives, and registers an
+associated @sc{fmc} device for each card.
+The @sc{svec} driver can do exactly the same for
+the VME carrier (actually, it should do it twice, because the @sc{svec}
+carries two @sc{fmc} mezzanines).  Similarly, an Etherbone driver will be
+able to register its own @sc{fmc} devices, offering communication primitives
 through frame exchange.
 
-The contents of the EEPROM within the FMC will be used for
+The contents of the @sc{eeprom} within the @sc{fmc} are used for
 identification purposes, i.e. for matching the device with its own
 driver. For this reason the device structure includes a complete copy
-of the EEPROM (actually, the carrier driver may choose to only return
-the leading part of it).
+of the @sc{eeprom} (actually, the carrier driver may choose whether
+or not to return it -- for example we most likely won't have the
+whole @sc{eeprom} available for Etherbone devices.
 
 The following listing shows
 the current structure defining a device. Please note that all
@@ -162,8 +205,10 @@ registration time.
 
 @smallexample
 struct fmc_device {
-        unsigned long version;          /* to be set to FMC_VERSION */
-        struct fmc_device_id id;        /* for the match function */
+        unsigned long version;
+        unsigned long flags;
+        struct module *owner;           /* char device must pin it */
+        struct fmc_fru_id id;           /* for EEPROM-based match */
         struct fmc_operations *op;      /* carrier-provided */
         int irq;                        /* according to host bus. 0 == none */
         int eeprom_len;                 /* Usually 8kB, may be less */
@@ -171,31 +216,37 @@ struct fmc_device {
         char *carrier_name;             /* "SPEC" or similar, for special use */
         void *carrier_data;             /* "struct spec *" or equivalent */
         __iomem void *base;             /* May be NULL (Etherbone) */
+        unsigned long memlen;           /* Used for the char device */
         struct device dev;              /* For Linux use */
         struct device *hwdev;           /* The underlying hardware device */
+        unsigned long sdbfs_entry;
         struct sdb_array *sdb;
+        uint32_t device_id;             /* Filled by the device */
+        char *mezzanine_name;           /* Built by fmc-core (allocated) */
         void *mezzanine_data;
 };
 @end smallexample
 
-The meaning of each field is summarized in its own line above. All
+The meaning of most fields is summarized in the code comment above. All
 of the fields must be filled by the carrier driver before registration,
-with a few exceptions; please note that @i{hwdev} is used for messages, using
-@code{dev_err()} or similar functions, so it must be properly set
+with a few exceptions. Please note that @i{hwdev} is used for messages:
+the core calls @code{dev_err()} and similar functions,
+so the field must be properly set
 or the system will @i{Oops} with a NULL pointer pretty soon.
-Similarly, the carrier must read its own EEPROM memory before registering
+Similarly, the carrier should read its own @sc{eeprom} memory before registering
 the driver.
 
-The fields that are not set by the carrier are: @i{fmc_device_id},
-which is set by the bus controller according to EEPROM contents; @i{sdb},
-which is set by the bus controller when scanning an SDB bus; @i{mezzanine_data}
-which is a pointer used by the mezzanine driver
+The fields that are not set by the carrier are: @i{fmc_fru_id} and
+@i{mezzanine_name} (both are set by the bus core according to
+@sc{eeprom} contents); @i{sdbfs_entry} (autodetected by the core while
+scanning the @sc{eeprom}; @i{sdb} (built when scanning the @sc{fpga} contents)
+and @i{mezzanine_data} (private to the mezzanine driver).
 
 @b{Note}: @i{mezzanine_data} may be redundant, because Linux offers
-the @i{drvdata} approach, to the field may be removed in later
+the @i{drvdata} approach, so the field may be removed in later
 versions of this bus implementation.
 
-As I write this, she SPEC carrier is already completely functional in
+As I write this, she @sc{spec} carrier is already completely functional in
 the @i{fmc-bus} environment, and is a good reference to look at.
 
 @c ==========================================================================
@@ -230,7 +281,7 @@ The individual methods perform the following tasks:
 @item readl
 @itemx writel
 
-	These functions access FPGA registers by whatever means the
+	These functions access @sc{fpga} registers by whatever means the
         carrier offers. They are not expected to fail, and most of the time
         they will just make a memory access to the host bus. If the
         carrier provides a @i{base} pointer, the driver may use direct
@@ -259,9 +310,9 @@ The individual methods perform the following tasks:
 
 @item reprogram
 
-	The carrier enumerates FMC devices by loading a standard (or
-        @i{golden}) FPGA binary that allows EEPROM access. Each driver, then,
-        will need to reprogram the FPGA by calling this
+	The carrier enumerates @sc{fmc} devices by loading a standard (or
+        @i{golden}) @sc{fpga} binary that allows @sc{eeprom} access. Each driver, then,
+        will need to reprogram the @sc{fpga} by calling this
         function.  If the name argument is NULL,
         the carrier should reprogram the golden binary. If the gateware name
         has been overridden through module parameters (in a carrier-specific
@@ -290,14 +341,14 @@ The individual methods perform the following tasks:
 @item read_ee
 @itemx write_ee
 
-	Read or write the EEPROM. The functions are expected to be only
+	Read or write the @sc{eeprom}. The functions are expected to be only
         called before reprogramming and the carrier should refuse them
         with @code{ENODEV} after reprogramming.  The offset is 
         expected to be within 8kB (the current size),
         but addresses up to 1MB are reserved to fit bigger I2C
         devices in the future. Carriers may offer
         access to other internal flash memories using these same methods:
-        for example the SPEC driver may define that its carrier I2C memory
+        for example the @sc{spec} driver may define that its carrier I2C memory
         is seen at offset 1M and the internal SPI flash is seen at offset
         16M.  This multiplexing of several flash memories in the same
         address space is is carrier-specific and should only be used by
@@ -339,7 +390,7 @@ refers to the current @i{carrier_name}), the operation returns an error
 so the caller will know that it is running under a yet-unsupported carrier.
 
 So, for example, a driver
-that has been developed and tested on both the SPEC and the SVEC may
+that has been developed and tested on both the @sc{spec} and the @sc{svec} may
 request configuration of two different GPIO pins, and expect one such
 configuration to succeed -- if none succeeds it most likely means that
 the current carrier is a still-unknown one.
@@ -365,9 +416,9 @@ physical GPIO numbers. The carrier may then use the @t{_gpio} field
 to cache the result of this mapping.
 
 All carriers must map their I/O lines
-to the sets above starting from zero.  The SPEC, for example, maps
+to the sets above starting from zero.  The @sc{spec}, for example, maps
 interrupt pins 0 and 1, and test points 0 through 3 (even if the test
-points on the PCB are called 5,6,7,8).
+points on the @sc{psb} are called 5,6,7,8).
 
 If, for example, a driver requires a free LED and a test point (for a
 scope probe to be plugged at some point during development) it may ask
@@ -377,11 +428,11 @@ will know the order used by the specific carrier driver in assigning
 leds and testpoints, so to make a carrier-dependent use of the diagnostic tools.
 
 In theory, some form of autodetection should be possible: a driver
-like the @i{wr-nic} (which uses IRQ(1) on the SPEC card) should
+like the @i{wr-nic} (which uses IRQ(1) on the @sc{spec} card) should
 configure IRQ(0), make a test with software-generated interrupts and
 configure IRQ(1) if the test fails. This probing step should be used
 because even if the @i{wr-nic} gateware is
-known to use IRQ1 on the SPEC, the driver should be
+known to use IRQ1 on the @sc{spec}, the driver should be
 carrier-independent and thus use IRQ(0) as a first bet -- actually,
 the knowledge that IRQ0 may fail is carrier-dependent information, but
 using it doesn't make the driver unsuitable for other carriers.
@@ -397,26 +448,106 @@ of high input bits (if no input is configured, the value for success is 0).
 
 While I admit the procedure is not completely straightforward, it
 allows configuration, input and output with a single carrier
-operation.  Given the typical use case of FMC devices, GPIO operations
+operation.  Given the typical use case of @sc{fmc} devices, GPIO operations
 are not expected to ever by in hot paths, and GPIO access so fare has
 only been used to configure the interrupt pin, mode and
 polarity. Especially reading inputs is not expected to be common. If
 your device has GPIO capabilities in the hot path, you should consider
 using the kernel's GPIO mechanisms.
 
+@c ==========================================================================
+@node fmc-fakedev
+@section fmc-fakedev
+
+This package includes a software-only device, called @t{fmc-fakedev}.
+Unlike the @sc{spec} driver, which creates an @sc{fmc} device for each
+PCI cards it manages, this module creates a single instance of its
+device.
+
+It is meant as the simplest possible example of how a driver should be
+written, and it includes a fake @sc{eeprom} image (built using the
+tools described in @ref{FMC Identification}).
+
+You can also use this device to verify the match algorithms, by
+asking it to test your own @sc{eeprom} image. You can provide the image by
+means of the @t{eeprom=} module parameter: the new @sc{eeprom} image
+is loaded, as usual, by means of the @i{firmware loader}.
+This example shows the defaults and a custom @sc{eeprom} image:
+
+@smallexample
+   spusa.root# insmod fmc-fakedev.ko
+   [  158.355436]  fake-fmc: Manufacturer: fake-vendor
+   [  158.360106]  fake-fmc: Product name: fake-design-for-testing
+   spusa.root# rmmod fmc-fakedev
+   spusa.root# insmod fmc-fakedev.ko eeprom=fdelay-eeprom.bin
+   [  197.182682]  fake-fmc: Manufacturer: CERN
+   [  197.186764]  fake-fmc: Product name: FmcDelay1ns4cha
+   spusa.root# rmmod fmc-fakedev
+@end smallexample
+
+After loading the device, you can use the @i{write_ee} method do
+modify its own internal fake @sc{eeprom}: whenever the image is
+overwritten starting at offset 0, the module will unregister and
+register again the @sc{fmc} device. This is shown later, in
+section @ref{fmc-write-eeprom}.
+
+@c ==========================================================================
+@node FMC Device Incompatibilities
+@section FMC Device Incompatibilities
+
+If you started using this @i{fmc-bus} machinery some time ago, you may
+want to know what changed when the system has gained IPMI-FRU support.
+If you are a new user, you can ignore this section.
+
+@table @code
+
+@item version
+
+	The version number changed from 1 to 2, to prevent errors in those
+        few users that (like me) don't run CONFIG_MODVERSIONS. Actually,
+        no change is needed in driver source code.
+
+@item owner
+
+	The field is a new entry, and should be set to @code{THIS_MODULE}.
+	The new ``generic'' driver, meant to finally obsolete the
+        @i{gnurabbit} project, needs to pin a device while using it.
+
+@item memlen
+
+	In order to export a char device, we need to know the memory size,
+        so the device must tell how big it is (e.g., for the @sc{spec} it
+        is 1MB).
+
+@item device_id
+
+	This is a new entry: earlier, some @sc{fmc} drivers had to
+        look at the PCI carrier-specific structures to build identifiers.
+        This should now be filled by the device before registering (if
+        missing, the core will use sequential numbers).
+
+@end table
+
+Other fields are new, but they are filled by the core and don't require
+changes in driver modules.
+
 @c ##########################################################################
 @node FMC Driver
 @chapter FMC Driver
 
-An FMC driver is concerned with the specific mezzanine and associated
+An @sc{fmc} driver is concerned with the specific mezzanine and associated
 gateware. As such, it is expected to be independent of
-the carrier being used.  The matching between device and driver is
-only based on the content of the EEPROM (as mandated by the FMC
-standard) and the driver will perform I/O accesses only by means of
+the carrier being used: it will perform I/O accesses only by means of
 carrier-provided functions.
 
+The matching between device and driver is
+based on the content of the @sc{eeprom} (as mandated by the @sc{fmc}
+standard) or by the actual cores configured in the @sc{fpga};
+the latter technique is used when the @sc{fpga} is already programmed
+when the device is registered to the bus core.
+
 In some special cases it is possible for a driver to directly access
-FPGA registers, by means of the @code{base} field of the device
+@sc{fpga} registers, by means of the @code{base} field of the device
 structure. This may be needed for high-bandwidth peripherals like fast ADC
 cards. If the @i{device} module registered a remote device (for example
 by means of Etherbone), the @code{base} pointer will be NULL.
@@ -435,20 +566,61 @@ will exploit our framework with their own carriers.  An example use of
 carrier names is in GPIO setup (see @ref{The GPIO Abstraction}),
 although the name match is not expected to be performed by the driver.
 If you depend on specific carriers, please check the carrier name and
-fail gracefully if your driver finds it is running in an unknown
+fail gracefully if your driver finds it is running in a yet-unknown-to-it
 environment.
+
+@c ==========================================================================
+@node ID Table
+@section ID Table
+
+Like most other Linux drivers, and @sc{fmc} driver must list all the
+devices which it is able to drive.  This is usually done by means of
+a device table, but in @sc{fmc} we can match hardware based either on
+the contents of their @sc{eeprom} or on the actual @sc{fpga} cores
+that can be enumerated.  Therefore, we have two tables of identifiers.
+
+Matching of @sc{fru} information depends on two names, the
+manufacturer (or vendor) and the device (see @ref{FMC
+Identification}); for flexibility during production (i.e. before writing
+to the @sc{eeprom}) the bus supports a @i{catch-all} driver that
+specifies NULL strings. For this reason, the table is specified as
+pointer-and-length, not a a null-terminated array -- the entry with
+NULL names can be a valid entry.
+
+Matching on @sc{fpga} cores depends on two numeric fields: the 64-bit
+vendor number and the 32-bit device number. Support for matching based
+on @i{class} is not yet implemented.  Each device is expected to be
+uniquely identified by an array of cores (it matches if all of the
+cores are instantiated), and for consistency the list is passed as
+pointer-and-length.  Several similar devices can be driven by the same
+driver, and thus the driver specifies and array of such arrays.
+
+The complete set of involved data structures is thus the following:
+
+@smallexample
+   struct fmc_fru_id { char *manufacturer; char *product_name; };
+   struct fmc_sdb_one_id { uint64_t vendor; uint32_t device; };
+   struct fmc_sdb_id { struct fmc_sdb_one_id *cores; int cores_nr; };
+
+   struct fmc_device_id {
+           struct fmc_fru_id *fru_id; int fru_id_nr;
+           struct fmc_sdb_id *sdb_id; int sdb_id_nr;
+   };
+@end smallexample
+
+A better reference, with full explanation, is the @t{<linux/fmc.h>} header.
 
 @c ==========================================================================
 @node Module Parameters
 @section Module Parameters
 
-Most of the FMC drivers need the same
+Most of the @sc{fmc} drivers need the same
 set of kernel parameters. This package includes support
 to implement common parameters by means of fields
 in the @code{fmc_driver} structure and simple macro definitions.
 
 The parameters are carrier-specific, in that they rely on the @i{busid}
-concept, that varies among carriers. For the SPEC, the identifier
+concept, that varies among carriers. For the @sc{spec}, the identifier
 is a PCI bus and @i{devfn} number, 16 bits wide in total;
 drivers for other carriers will most likely offer something similar
 but not identical, and some code duplication is unavoidable.
@@ -465,7 +637,7 @@ to see how they are actually used, please look at @i{spec-trivial.c}.
         @code{0x0400} represents bus 4, slot 0.
         If any such ID is specified, the driver will only
         accept to drive cards that appear in the list (even if the
-        FMC ID matches). This is accomplished by the @i{validate}
+        @sc{fmc} ID matches). This is accomplished by the @i{validate}
         carrier method.
 
 @item gateware=
@@ -478,7 +650,7 @@ to see how they are actually used, please look at @i{spec-trivial.c}.
 @item show_sdb=
 
 	For modules supporting it, this parameter asks to
-        show the SDB internal structure by means of kernel messages. It is
+        show the @sc{sdb} internal structure by means of kernel messages. It is
         disabled by default because those lines tend to hide more
         important messages, if you look at the system console while
         loading the drivers.
@@ -488,7 +660,7 @@ to see how they are actually used, please look at @i{spec-trivial.c}.
 For example, if you are using the trivial driver to load two different
 gateware files to two different cards, you can use the following
 parameters to load different binaries to the cards, after looking up
-the PCI identifiers. This has been tested with a SPEC carrier.
+the PCI identifiers. This has been tested with a @sc{spec} carrier.
 
 @smallexample
    insmod fmc-trivial.ko \
@@ -505,9 +677,9 @@ You can use @i{modinfo} to check what is supported by each module.
 
 The simple module @i{fmc-trivial} is just a simple client that
 registers an interrupt handler. I used it to verify the basic mechanism
-of the FMC bus and how interrupts worked.
+of the @sc{fmc} bus and how interrupts worked.
 
-The module implements the generic FMC parameters, so it can program a
+The module implements the generic @sc{fmc} parameters, so it can program a
 different gateware file in each card. The whole list of parameters it
 accepts are:
 
@@ -533,7 +705,7 @@ accepts are:
         to be used to reprogram the internal LM32. The same rules as for
         @code{gateware=} above are used for matching binaries and cards.
         The carrier will copy the @i{lm32} executable to the first
-        SDB record that is mapped as ``@code{WB4-BlockRAM}'' (thus,
+        @sc{sdb} record that is mapped as ``@code{WB4-BlockRAM}'' (thus,
         it needs the @code{sdb=} values to be specified.
 @end ifdocbook
 @end table
@@ -545,19 +717,19 @@ This driver is worth reading, but it is not worth describing here.
 @section fmc-write-eeprom
 
 This module is designed to load a binary file from @i{/lib/firmware}
-and to write it to the internal EEPROM of the mezzanine card. This
+and to write it to the internal @sc{eeprom} of the mezzanine card. This
 driver uses the @code{busid} generic parameter.
 
-Overwriting the EEPROM is not something you should do daily, and it is
+Overwriting the @sc{eeprom} is not something you should do daily, and it is
 expected to only happen during manufacturing. For this reason, the
-module makes it unlikely for the random user to change a working EEPROM.
+module makes it unlikely for the random user to change a working @sc{eeprom}.
 
 The module takes the following measures:
 
 @itemize @bullet
 
 @item It accepts a @code{file=} argument (within @i{/lib/firmware})
-and if no such argument is received, it doesn't write anything to EEPROM
+and if no such argument is received, it doesn't write anything to @sc{eeprom}
 (i.e. there is no default file name).
 
 @item If the file name ends with @code{.bin} it is written verbatim
@@ -593,23 +765,120 @@ This is a real example: that writes 5 bytes at position 0x110:
    [19983.414615] spec 0000:03:00.0: write_eeprom: success
 @end smallexample
 
-Please note that you'll most likely want to use SDBFS to build your
-EEPROM image, at least if your mezzanines are being used in the White Rabbit
+Please note that you'll most likely want to use @sc{sdbfs} to build your
+@sc{eeprom} image, at least if your mezzanines are being used in the White Rabbit
 environment. For this reason the TLV format is not expected to be used much
 and is not expected to be developed further.
 
+If you want to experiment with reflashing fake @sc{eeprom} devices,
+you cn use the @t{fmc-fakedev.ko} module (see @ref{fmc-fakedev}).
+Whenever you change the image starting at offset 0, it will deregister
+and register again after two seconds.  Please note, however, that if
+@i{fmc-write-eeprom} is still loaded, the system will associate it to
+the new device, which will be reprogrammed and thus will be unloaded
+after two seconds.  The following example removes the module after
+it reflashed @i{fakedev} the first time.
+
+@smallexample
+spusa.root# insmod fmc-fakedev.ko
+   [   72.984733]  fake-fmc: Manufacturer: fake-vendor
+   [   72.989434]  fake-fmc: Product name: fake-design-for-testing
+   spusa.root# insmod fmc-write-eeprom.ko busid=0 file=fdelay-eeprom.bin; \
+       rmmod fmc-write-eeprom
+   [  130.874098]  fake-fmc: Matching a generic driver (no ID)
+   [  130.887845]  fake-fmc: programming 6155 bytes
+   [  130.894567]  fake-fmc: write_eeprom: success
+   [  132.895794]  fake-fmc: Manufacturer: CERN
+   [  132.899872]  fake-fmc: Product name: FmcDelay1ns4cha
+@end smallexample
+
+@c ==========================================================================
+@node fmc-chardev
+@section fmc-chardev
+
+This is a simple generic driver, that allows user access by means of a
+character device (actually, one for each mezzanine it takes hold of).
+
+The char device is created as a @i{misc} device. Its name in @t{/dev}
+(as created by @i{udev}) is the same name as the underlying @sc{fmc}
+device. Thus, the name can be a silly @t{fmc-0000} look-alike if the
+device has no identifiers nor @i{bus_id}, a more specific @t{fmc-0400}
+if the device has a bus-specific address but no associated name, or
+something like @t{fdelay-0400} if the @sc{fmc} core can rely on both a
+mezzanine name and a bus address.
+
+Currently the driver only supports @i{read} and @i{write}: you can
+@i{lseek} to the desired address and read or write a register.
+
+The driver assumes all registers are 32-bit in size, and only accepts
+a single read or write per system call. However, as a result of Unix
+read and write semantics, users can simply @i{fread} or @i{fwrite}
+bigger areas on order to dump or store bigger memory areas.
+
+There is currently no support for @i{mmap}, user-space interrupt
+management and DMA buffers. They may be added in later versions, if
+the need arises.
+
+The example below shows raw access to a @sc{spec}
+card programmed with it's @i{golden} @sc{fpga} file, that features
+an @sc{sdb} structure at offset 256 -- i.e. 64 words. The 
+The mezzanine's @sc{eeprom} in this case is not programmed, so the
+default name is @t{fmc-@i{<bus><devfn>}}, and there are two
+cards in the system:
+
+@smallexample
+    spusa.root# insmod fmc-chardev.ko
+    [ 1073.339332] spec 0000:02:00.0: Driver has no ID: matches all
+    [ 1073.345051] spec 0000:02:00.0: Created misc device "fmc-0200"
+    [ 1073.350821] spec 0000:04:00.0: Driver has no ID: matches all
+    [ 1073.356525] spec 0000:04:00.0: Created misc device "fmc-0400"
+    spusa.root# ls -l /dev/fmc*
+    crw------- 1 root root 10, 58 Nov 20 19:23 /dev/fmc-0200
+    crw------- 1 root root 10, 57 Nov 20 19:23 /dev/fmc-0400
+    spusa.root# dd bs=4 skip=64 count=1 if=/dev/fmc-0200 2> /dev/null | od -t x1z
+    0000000 2d 42 44 53                                      >-BDS<
+    0000004
+@end smallexample
+
+The simple program @i{tools/fmc-mem} in this package can access
+an @sc{fmc} char device and read or write a word or a whole
+area.  Actually, the program is not specific to @sc{fmc} at all,
+it just uses @i{lseek}, @i{read} and @i{write}.
+
+Its first argument is the device name, the second the offset, the
+third (if any) the value to write and the optional last argument that
+must begin with ``@t{+}'' is the number of bytes to read or write.
+In case of repeated reading data is written to @i{stdout}; repeated
+writes read from @i{stdin} and the value argument is ignored.
+
+The following examples show reading the @sc{sdb} magic number
+and the first @sc{sdb} record from a @sc{spec} device programmed
+with its @i{golden} image:
+
+@smallexample
+   spusa.root# ./fmc-mem /dev/fmc-0200 100
+   5344422d
+   spusa.root# ./fmc-mem /dev/fmc-0200 100 +40 | od -Ax -t x1z
+   000000 2d 42 44 53 00 01 02 00 00 00 00 00 00 00 00 00  >-BDS............<
+   000010 00 00 00 00 ff 01 00 00 00 00 00 00 51 06 00 00  >............Q...<
+   000020 c9 42 a5 e6 02 00 00 00 11 05 12 20 2d 34 42 57  >.B......... -4BW<
+   000030 73 6f 72 43 72 61 62 73 49 53 47 2d 00 20 20 20  >sorCrabsISG-.   <
+   000040
+@end smallexample
+
+
 @c ##########################################################################
-@node Writing your FMC Driver
-@chapter Writing your FMC Driver
+@node Writing your FMC Kernel Module
+@chapter Writing your FMC Kernel Module
 
 This chapter includes some suggestions about to write your own drivers
-for FMC carriers or mezzanines.  It is the outcome of the experience I
+for @sc{fmc} carriers or mezzanines.  It is the outcome of the experience I
 gathered working with @i{fine-delay} and @code{wr-nic.ko} (currently
 part of @i{spec-sw}, as I write this).
 
 Driver writing is a known problem, which @i{only} requires you to know
 your hardware and your frameworks. However, the choice to split the
-overall FMC software design into several projects, and thus several
+overall @sc{fmc} software design into several projects, and thus several
 repositories, opens a new set of problems, related to how the projects
 relate one another.
 
@@ -619,8 +888,8 @@ most often be developed under a specific carrier and will most likely
 depend on features of the the specific carrier, at least initially.
 
 To make the problem worse, a single host in your operating environment
-(``in production'') may need tp run several FMC devices (thus several
-FMC drivers), that expect to be using different versions of the
+(``in production'') may need tp run several @sc{fmc} devices (thus several
+@sc{fmc} drivers), that expect to be using different versions of the
 base packages -- according to when and where they have been written.
 
 @c ==========================================================================
@@ -631,7 +900,7 @@ This @i{fmc-bus} package includes a @i{version} field at the beginning
 of the two data structures, @code{fmc_device} and @code{fmc_driver}.
 
 This version number is there to prevent mismatches between the
-information passed by the FMC modules and how it is used by the core
+information passed by the @sc{fmc} modules and how it is used by the core
 code.  The version is not expected to change often, because the code
 base is already pretty stable, and we don't expect to face many new
 problems.
@@ -665,9 +934,9 @@ reliable. The problem for diagnostics is already solved by the
 @code{dev_err(fmc->hwdev)} so the message includes proper identifiers
 (e.g. the bus and slot numbers for PCI cards).
 
-When we moved the @i{fine-delay} driver from being a SPEC-only driver
+When we moved the @i{fine-delay} driver from being a @sc{spec}-only driver
 to a mezzanine @i{fmc-bus} driver, we found we needed an identifier to
-register our top-level device (here, a ZIO driver).  The right
+register our top-level device (here, a @sc{zio} driver).  The right
 solution to this problems is for carrier drivers to already spell out
 an identifier in the @code{fmc_device} structure, so mezzanine drivers
 can use it.  This requires a version change.
@@ -685,7 +954,7 @@ the carrier-provided identifier and will use whatever
 technique it used under the older @i{fmc-bus} version.
 
 While writing the @i{fine-delay} driver, we chose to use some special
-SPEC-dependent code to extract the identifier, until the core offered
+@sc{spec}-dependent code to extract the identifier, until the core offered
 the new field. Carrier-specific code is explained in @ref{Suggestions
 for Mezzanine Drivers}.
 
@@ -694,7 +963,7 @@ for Mezzanine Drivers}.
 @section Git Submodule Crash Course
 
 The mechanism we suggest to manage dependencies is @i{git submodule}.
-It is already in place in the existing FMC drivers, but using it
+It is already in place in the existing @sc{fmc} drivers, but using it
 requires some knowledge.  This is some basic information about
 submodules, assuming you are already accustomed to simple @i{git}
 repositories. (Tutorials exists, but they are usually too detailed
@@ -814,11 +1083,11 @@ While this approach is easily achieved by arranging for @t{make
 install} to install the submodules as well, this will introduce
 problems for more advanced users, who are using different mezzanines
 in the same host system. This is going to be pretty common, because
-you can drive FMC mezzanines with @i{Etherbone}, so drivers in a
+you can drive @sc{fmc} mezzanines with @i{Etherbone}, so drivers in a
 single host won't be limited to the few PCI or VME slots of your
 desktop computer or crate.
 
-The suggested behaviour for an FMC driver package is using
+The suggested behaviour for an @sc{fmc} driver package is using
 submodules for the drivers it depends on. However, it should
 only install its own
 kernel modules. If everything were installed automatically, we risked
@@ -859,7 +1128,7 @@ everything that's needed to run the hardware item.
 
 The examples shown here are taken from @i{fine-delay}, the first
 mezzanine driver that uses this multi-level approach. That specific driver also
-uses ZIO as a submodule, but this has been stripped from the examples as
+uses @sc{zio} as a submodule, but this has been stripped from the examples as
 not relevant to @i{fmc-bus}.  The device driver itself lives
 in the @i{kernel} subdirectory, because the package also features @i{tools}
 and @i{lib}. This is expected to be common, so all code shown below uses
@@ -1012,6 +1281,283 @@ As the last bits are fixed I'll update this chapter, and I'll remove
 this section when everything is verified by a larger user base.
 
 @c ##########################################################################
+@node FMC Identification
+@chapter FMC Identification
+
+The @sc{fmc} standard requires every compliant mezzanine to carry
+identification information in an I2C @sc{eeprom}.  The information must be
+laid out according to the ``@sc{ipmi} Platform Management FRU
+Information'', where @sc{ipmi} is a lie I'd better not expand, and FRU
+means ``Field Replaceable Unit''.
+
+The FRU information is an intricate unreadable binary blob that must
+live at offset 0 of the @sc{eeprom}, and typically extends for a few
+hundred bytes. The standard allows the application to use all the
+remaining storage area of the @sc{eeprom} as it wants.
+
+This chapter explains how to create your own @sc{eeprom} image and how to
+write it in your mezzanine, as well as how devices and drivers are paired
+at run time.  @sc{eeprom} programming uses tools that are part of this
+package and @sc{sdb} (part of the @i{fpga-config-space} package).
+
+The first sections are only interesting for manufacturers who need to
+write the @sc{eeprom}. If you are just a software developer writing an
+@sc{fmc} device or driver, you may jump straight to @ref{How
+Identification Works at Run Time}.
+
+@c ==========================================================================
+@node Building the FRU Structure
+@section Building the FRU Structure
+
+If you want to know the internals of the FRU structure and despair,
+you can retrieve the document from
+@url{http://download.intel.com/design/servers/ipmi/FRU1011.pdf} .  The
+standard is awful and difficult without reason, so we only support the
+minimum mandatory subset -- we create a simple structure and parse it
+back at run time, but we are not able to either generate or parse more
+arcane features like non-english languages and 6-bit text.  If you
+need more items of the FRU standard for you boards, please submit
+patches.
+
+This package includes the Python script that Matthieu Cattin wrote to
+generate the FRU binary blob, based on an helper libipmi by Manohar
+Vanga and Matthieu himself.  I changed the test script to receive
+parameters from the command line or from the environment (the
+command line takes precedence)
+
+To make a long story short, in order to build a standard-compliant
+binary file to be burned in your @sc{eeprom}, you need the following items:
+
+@c the first empty column (0.1 wide) is for indenting -- me ignorant
+@multitable @columnfractions .1 .2 .1 .3 .2
+@headitem @tab Environment @tab Opt @tab Official Name @tab Default
+
+@item @tab FRU_VENDOR
+@tab @t{-v}
+@tab ``Board Manufacturer''
+@tab @t{fmc-example}
+
+@item @tab FRU_NAME
+@tab @t{-n}
+@tab ``Board Product Name''
+@tab @t{mezzanine}
+
+@item @tab FRU_SERIAL
+@tab @t{-s}
+@tab `Board Serial Number''
+@tab @t{0001}
+
+@item @tab FRU_PART
+@tab @t{-p}
+@tab ``Board Part Number''
+@tab @t{sample-part}
+
+@item @tab FRU_OUTPUT
+@tab @t{-o}
+@tab @i{not applicable}
+@tab /dev/stdout
+
+@end multitable
+
+The ``Official Name'' above is what you find in the FRU official
+documentation, chapter 11, page 7 (``Board Info Area Format'').  The
+output option is used to save the generated binary to a specific file
+name instead of @i{stdout}.
+
+You can pass the items to the FRU generator either in the environment
+or on the command line.  This package has currently no support for
+specifying power consumption or such stuff, but I plan to add it as
+soon as I find some time for that.
+
+@b{FIXME}: consumption etc for FRU are here or in PTS?
+
+The following example creates a binary image for a specific board:
+
+@smallexample
+   ./tools/fru-generator -v CERN -n FmcAdc100m14b4cha \
+          -s HCCFFIA___-CR000003 -p EDA-02063-V5-0 > eeprom.bin
+@end smallexample
+
+The following example shows a script that builds several binary
+@sc{eeprom} images for a series of boards, changing the serial number
+for each of them. The script uses a mix of environment variables and
+command line options, and uses the same string patterns shown above.
+
+@smallexample
+   #!/bin/sh
+
+   export FRU_VENDOR="CERN"
+   export FRU_NAME="FmcAdc100m14b4cha"
+   export FRU_PART="EDA-02063-V5-0"
+
+   serial="HCCFFIA___-CR"
+
+   for number in $(seq 1 50); do
+      # build number-string "ns"
+      ns="$(printf %06d $number)"
+      ./fru-generator -s "${serial}${ns}" > eeprom-${ns}.bin
+   done
+@end smallexample
+
+@c ==========================================================================
+@node Using SDB-FS in the EEPROM
+@section Using SDB-FS in the EEPROM
+
+If you want to use @sc{sdb} as a filesystem in the @sc{eeprom} device
+within the mezzanine, you should create one such filesystem using
+@i{gensdbfs}, from the @i{fpga-config-space} package on OHWR.
+
+By using an @sc{sbd} filesystem you can cluster several @i{files} in a
+single @sc{eeprom}, so both the host system and a soft-core running in
+the @sc{fpga} (if any) can access extra production-time information.
+
+We chose to use @sc{sdb} as a storage filesystem because the format is
+very simple, and both the host system and the soft-core will likely already
+include support code for such format. The @sc{sdb} library offered by
+the @i{fpga-config-space} is less than 1kB under LM32, so it proves
+quite up to the task.
+
+The @sc{sdb} entry point (which acts as a directory listing) cannot
+live at offset zero in the flash device, because the FRU information
+must live there.  To avoid wasting precious storage space while
+still allowing for more-than-minimal FRU structures, the @t{fmc.ko}
+will look for the @sc{sdb} record at address 256, 512 and 1024.
+
+In order to generate the complete @sc{eeprom} image you'll need a
+configuration file for @i{gensdbfs}: you tell the program where to
+place the @i{sdb} entry point, and you must force the FRU data file to
+be placed at the beginning of the storage device. If needed, you can
+also place other files at a special offset (we sometimes do it for
+backward compatibility with drivers we wrote before implementing
+@sc{sdb} for flash memory).
+
+The directory @i{tools/sdbfs} of this package includes a
+well-commented example that you may want to use as a starting point
+(the comments are in the file called @t{--SDB-CONFIG--}).
+Reading documentation for @i{gensdbfs} is a suggested first step
+anyways.
+
+This package (generic @sc{fmc} bus support) only accesses two files in
+the @sc{eeprom}: the FRU information, at offset zero, with a suggested
+filename of @t{IPMI-FRU} and the short name for the mezzanine, in a
+file called @t{name}. The @t{IPMI-FRU} name is not mandatory, but a
+strongly suggested choice; the @t{name} filename is mandatory, because
+this is the preferred short name used by the @sc{fmc} core.  For
+example, a @t{name} of ``@t{fdelay}'' may supplement a @i{Product Name}
+like ``@t{FmcDelay1ns4cha}'' -- exactly as demonstrated in @file{tools/sdbfs}.
+
+@b{Note}: @sc{sdb} access to flash memory is not yet supported, so the
+short name currently in use is just the ``@i{Product Name}'' FRU
+string.
+@c FIXME: scan SDB for the name filename.
+
+The example in @i{tools/sdbfs} includes an extra file, that is needed
+by the @i{fine-delay} driver, and must live at a known address of 0x1800.
+By running @i{gensdbfs} on that directory you can output your binary
+@sc{eeprom} image (here below @t{spusa$} is the shell prompt):
+
+@smallexample
+   spusa$ ../fru-generator -v CERN -n FmcDelay1ns4cha -s proto-0 \
+                 -p EDA-02267-V3 > IPMI-FRU
+   spusa$ ls -l
+   total 16
+   -rw-rw-r-- 1 rubini staff 975 Nov 19 18:08 --SDB-CONFIG--
+   -rw-rw-r-- 1 rubini staff 216 Nov 19 18:13 IPMI-FRU
+   -rw-rw-r-- 1 rubini staff  11 Nov 19 18:04 fd-calib
+   -rw-rw-r-- 1 rubini staff   7 Nov 19 18:04 name
+   spusa$ sudo gensdbfs . /lib/firmware/fdelay-eeprom.bin
+   spusa$ sdb-read -l -e 0x100 /lib/firmware/fdelay-eeprom.bin
+   /home/rubini/wip/sdbfs/userspace/sdb-read: listing format is to be defined
+   46696c6544617461:2e202020 @ 00000100-000018ff .
+   46696c6544617461:6e616d65 @ 00000200-00000206 name
+   46696c6544617461:66642d63 @ 00001800-000018ff fd-calib
+   46696c6544617461:49504d49 @ 00000000-000000d7 IPMI-FRU
+   spusa$ ../fru-dump /lib/firmware/fdelay-eeprom.bin
+   /lib/firmware/fdelay-eeprom.bin: manufacturer: CERN
+   /lib/firmware/fdelay-eeprom.bin: product-name: FmcDelay1ns4cha
+   /lib/firmware/fdelay-eeprom.bin: serial-number: proto-0
+   /lib/firmware/fdelay-eeprom.bin: part-number: EDA-02267-V3
+@end smallexample
+
+As expected, the output file is both a proper @i{sdbfs} object and an
+@sc{ipmi} @sc{fru} information blob. The @i{fd-calib} file lives at
+offset 0x1800 and is over-allocated to 256 bytes, according to the
+configuration file for @i{gensdbfs}.
+
+@c ==========================================================================
+@node Writing to the EEPROM
+@section Writing to the EEPROM
+
+Once you have created a binary file for your @sc{eeprom}, you can
+write it to the storage medium using the @t{fmc-write-eeprom} (See
+@ref{fmc-write-eeprom}, while relying on a carrier driver.  The
+procedure here shown here uses the @sc{spec} driver
+(@url{http://www.ohwr.org/projects/spec-sw}).
+
+The example assumes no driver is already loaded (actually, I
+unloaded them by hand as everything loads automatically at boot time
+after you installed the modules), and shows kernel messages together with
+commands. Here the prompt is @t{spusa.root#} and two @sc{spec} cards
+are plugged in the system.
+
+@smallexample
+spusa.root# insmod fmc.ko
+spusa.root# insmod spec.ko
+[13972.382818] spec 0000:02:00.0:  probe for device 0002:0000
+[13972.392773] spec 0000:02:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
+[13972.591388] spec 0000:02:00.0: FPGA programming successful
+[13972.883011] spec 0000:02:00.0: EEPROM has no FRU information
+[13972.888719] spec 0000:02:00.0: No device_id filled, using index
+[13972.894676] spec 0000:02:00.0: No mezzanine_name found
+[13972.899863] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
+[13972.906578] spec 0000:04:00.0:  probe for device 0004:0000
+[13972.916509] spec 0000:04:00.0: got file "fmc/spec-init.bin", 1484404 (0x16a674) bytes
+[13973.115096] spec 0000:04:00.0: FPGA programming successful
+[13973.401798] spec 0000:04:00.0: EEPROM has no FRU information
+[13973.407474] spec 0000:04:00.0: No device_id filled, using index
+[13973.413417] spec 0000:04:00.0: No mezzanine_name found
+[13973.418600] /home/rubini/wip/spec-sw/kernel/spec-gpio.c - spec_gpio_init
+spusa.root# ls /sys/bus/fmc/devices
+fmc-0000  fmc-0001
+spusa.root# insmod fmc-write-eeprom.ko busid=0x0200 file=fdelay-eeprom.bin
+[14103.966259] spec 0000:02:00.0: Matching an generic driver (no ID)
+[14103.975519] spec 0000:02:00.0: programming 6155 bytes
+[14126.373762] spec 0000:02:00.0: write_eeprom: success
+[14126.378770] spec 0000:04:00.0: Matching an generic driver (no ID)
+[14126.384903] spec 0000:04:00.0: fmc_write_eeprom: no filename given: not programming
+[14126.392600] fmc_write_eeprom: probe of fmc-0001 failed with error -2
+@end smallexample
+
+
+@c ==========================================================================
+@node How Identification Works at Run Time
+@section How Identification Works at Run Time
+
+@c ##########################################################################
+@node SDB Support
+@chapter SDB Support
+
+The @t{fmc.ko} bus driver exports a few functions to help drivers
+taking advantage of the @sc{sdb} information that may be present in
+your own @sc{fpga} memory image.
+
+The module exports the following functions, in the special header
+@t{<linux/fmc-sdb.h>}. The @t{linux/} prefix in the name is
+there because we plan to submit it upstream in the future, and don't
+want to force changes on our drivers if that happens.
+
+@smallexample
+    int fmc_scan_sdb_tree(struct fmc_device *fmc, unsigned long address);
+    void fmc_show_sdb_tree(struct fmc_device *fmc);
+    signed long fmc_find_sdb_device(struct sdb_array *tree, uint64_t vendor,
+                                    uint32_t device, unsigned long *sz);
+    int fmc_free_sdb_tree(struct fmc_device *fmc);
+@end smallexample
+
+To be completed.
+@c FIXME: sdb support
+
+@c ##########################################################################
 @node Portability
 @chapter Portability
 
@@ -1026,6 +1572,6 @@ badly.
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
-@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent SVEC
-@c  LocalWords:  setchapternewpage finalout Etherbone EEPROM gateware busid
-@c  LocalWords:  GPIO
+@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent @sc{svec}
+@c  LocalWords:  setchapternewpage finalout Etherbone eeprom gateware busid
+@c  LocalWords:  GPIO fpga ohwr smallexample spusa insmod

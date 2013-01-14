@@ -1,0 +1,13 @@
+#!/bin/sh
+
+export FRU_VENDOR="CERN"
+export FRU_NAME="FmcAdc100m14b4cha"
+export FRU_PART="EDA-02063-V5-0"
+
+serial="HCCFFIA___-CR"
+
+for number in $(seq 1 50); do
+   # build number-string "ns"
+   ns="$(printf %06d $number)"
+   ./fru-generator -s "${serial}${ns}" > eeprom-${ns}.bin
+done

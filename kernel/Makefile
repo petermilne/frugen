@@ -4,11 +4,15 @@ LINUX ?= /lib/modules/$(shell uname -r)/build
 ccflags-y += -I$M/include
 
 obj-m = fmc.o
+obj-m += fmc-fakedev.o
 obj-m += fmc-trivial.o
 obj-m += fmc-write-eeprom.o
+obj-m += fmc-chardev.o
 
 fmc-y = fmc-core.o
+fmc-y += fmc-match.o
 fmc-y += fmc-sdb.o
+fmc-y += fru-parse.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
