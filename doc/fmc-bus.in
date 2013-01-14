@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month November 2012
+@set update-month January 2013
 
 @finalout
 
@@ -99,7 +99,7 @@ Trade Association} and ratified by ANSI, the American National
 Standard Institute.  The official documentation is called ``ANSI-VITA
 57.1''.
 
-The @sc{fmc} card is an almost square @sc{psb}, around 70x75 millimeters, that
+The @sc{fmc} card is an almost square @sc{psb}, around 70x75 millimetres, that
 is called @i{mezzanine} in this document.  It usually lives plugged
 into into another @sc{psb} for power supply and control; such bigger
 circuit board is called @i{carrier} from now on, and a single carrier
@@ -158,8 +158,11 @@ to work, and a few more:
 @smallexample
    int fmc_driver_register(struct fmc_driver *drv);
    void fmc_driver_unregister(struct fmc_driver *drv);
-   int fmc_device_register(struct fmc_device *tdev);
-   void fmc_device_unregister(struct fmc_device *tdev);
+   int fmc_device_register(struct fmc_device *fmc);
+   void fmc_device_unregister(struct fmc_device *fmc);
+
+   int fmc_device_register_n(struct fmc_device *fmc, int n);
+   void fmc_device_unregister_n(struct fmc_device *fmc, int n);
 
    uint32_t fmc_readl(struct fmc_device *fmc, int offset);
    void fmc_writel(struct fmc_device *fmc, uint32_t val, int off);
@@ -167,9 +170,21 @@ to work, and a few more:
    void fmc_set_drvdata(struct fmc_device *fmc, void *data);
 @end smallexample
 
-They should be self-explicative, so nothing is added here. The data
-structure that describe a device is detailed in @ref{FMC Device},
-the one that describes a driver is detailed in @ref{FMC Driver}.
+The data structure that describe a device is detailed in @ref{FMC
+Device}, the one that describes a driver is detailed in @ref{FMC
+Driver}.
+
+The functions to register and unregister @i{n} devices are meant to be
+used by carriers that host more than one mezzanine. The devices must
+be all registered at the same time because if the @sc{fpga} is
+reprogrammed, all devices in the array are affected. Usually, the
+driver matching the first device will reprogram the @sc{fpga}, so
+other devices must know they are already driven by a reprogrammed
+@sc{fpga}.
+
+If a carrier hosts slots that are driven by different @sc{fpga} devices,
+it should register as a group only mezzanines that are driven by the same
+@sc{fpga}, for the reason outlined above.
 
 @c ##########################################################################
 @node FMC Device
@@ -212,35 +227,71 @@ struct fmc_device {
         struct fmc_operations *op;      /* carrier-provided */
         int irq;                        /* according to host bus. 0 == none */
         int eeprom_len;                 /* Usually 8kB, may be less */
+        int eeprom_addr;                /* 0x50, 0x52 etc */
         uint8_t *eeprom;                /* Full contents or leading part */
         char *carrier_name;             /* "SPEC" or similar, for special use */
         void *carrier_data;             /* "struct spec *" or equivalent */
-        __iomem void *base;             /* May be NULL (Etherbone) */
+        __iomem void *fpga_base;        /* May be NULL (Etherbone) */
+        __iomem void *slot_base;        /* Set by the driver */
+        struct fmc_device **devarray;   /* Allocated by the bus */
+        int slot_id;                    /* Index in the slot array */
+        int nr_slots;                   /* Number of slots in this carrier */
         unsigned long memlen;           /* Used for the char device */
         struct device dev;              /* For Linux use */
         struct device *hwdev;           /* The underlying hardware device */
         unsigned long sdbfs_entry;
         struct sdb_array *sdb;
         uint32_t device_id;             /* Filled by the device */
-        char *mezzanine_name;           /* Built by fmc-core (allocated) */
+        char *mezzanine_name;           /* Defaults to ``fmc'' */
         void *mezzanine_data;
 };
 @end smallexample
 
-The meaning of most fields is summarized in the code comment above. All
-of the fields must be filled by the carrier driver before registration,
-with a few exceptions. Please note that @i{hwdev} is used for messages:
-the core calls @code{dev_err()} and similar functions,
-so the field must be properly set
-or the system will @i{Oops} with a NULL pointer pretty soon.
-Similarly, the carrier should read its own @sc{eeprom} memory before registering
-the driver.
+The meaning of most fields is summarized in the code comment above.
 
-The fields that are not set by the carrier are: @i{fmc_fru_id} and
-@i{mezzanine_name} (both are set by the bus core according to
-@sc{eeprom} contents); @i{sdbfs_entry} (autodetected by the core while
-scanning the @sc{eeprom}; @i{sdb} (built when scanning the @sc{fpga} contents)
-and @i{mezzanine_data} (private to the mezzanine driver).
+The following fields must be filled by the carrier driver before
+registration:
+
+@itemize @bullet
+
+@item @t{version}: must be set to @t{FMC_VERSION}.
+@item @t{owner}: set to @t{MODULE_OWNER}.
+@item @t{op}: the operations to act on the device.
+@item @t{irq}: number for the mezzanine; may be zero.
+@item @t{eeprom_len}: length of the following array.
+@item @t{eeprom_addr}: 0x50 for first mezzanine and so on.
+@item @t{eeprom}: the full content of the @sc{i2c} @sc{eeprom}.
+@item @t{carrier_name}.
+@item @t{carrier_data}: a unique pointer for the carrier.
+@item @t{fpga_base}: the I/O memory address (may be NULL).
+@item @t{slot_id}: the index of this slot (starting from zero).
+@item @t{memlen}: if @t{fpga_base} is valid, the length of I/O memory.
+@item @t{hwdev}: to be used in @i{dev_err()} calls.
+@item @t{device_id}: a slot-specific unique integer number.
+@item @t{mezzanine_name}: used as name for the Linux device structure.
+
+@end itemize
+
+Please note that the carrier should read its own @sc{eeprom} memory
+before registering the device, as well as fill all other
+fields listed above.
+
+The following fields should not be assigned, because they are filled
+later by either the bus or the device driver:
+
+@itemize @bullet
+
+@item @t{flags}.
+@item @t{fru_id}: filled by the bus, parsing the eeprom. @c FIXME
+@item @t{slot_base}: filled and used by the driver, if useful to it.
+@item @t{devarray}: an array og all mezzanines driven by a singe @sc{fpga}.
+@item @t{nr_slots}: set by the core at registration time.
+@item @t{dev}: used by Linux.
+@item @t{sdb}: @sc{fpga} contents, scanned according to driver's directions.
+@item @t{sdbfs_entry}: @sc{sdb} entry point in @sc{eeprom}: autodetected.
+@item @t{mezzanine_data}: available for the driver.
+
+@end itemize
 
 @b{Note}: @i{mezzanine_data} may be redundant, because Linux offers
 the @i{drvdata} approach, so the field may be removed in later
@@ -284,10 +335,10 @@ The individual methods perform the following tasks:
 	These functions access @sc{fpga} registers by whatever means the
         carrier offers. They are not expected to fail, and most of the time
         they will just make a memory access to the host bus. If the
-        carrier provides a @i{base} pointer, the driver may use direct
+        carrier provides a @i{fpga_base} pointer, the driver may use direct
         access through that pointer. For this reason the header offers
         the inline functions @i{fmc_readl} and @i{fmc_writel} that
-        access @i{base} if the respective method is NULL. A driver that
+        access @i{fpga_base} if the respective method is NULL. A driver that
         wants to be portable and efficient should use @i{fmc_readl}
         and @i{fmc_writel}.
         For Etherbone, or other non-local carriers,
@@ -547,10 +598,10 @@ the latter technique is used when the @sc{fpga} is already programmed
 when the device is registered to the bus core.
 
 In some special cases it is possible for a driver to directly access
-@sc{fpga} registers, by means of the @code{base} field of the device
+@sc{fpga} registers, by means of the @code{fpga_base} field of the device
 structure. This may be needed for high-bandwidth peripherals like fast ADC
 cards. If the @i{device} module registered a remote device (for example
-by means of Etherbone), the @code{base} pointer will be NULL.
+by means of Etherbone), the @code{fpga_base} pointer will be NULL.
 Therefore, drivers must be ready to deal with NULL base pointers, and
 fail gracefully.  Most driver, however, are not expected to access
 the pointer directly but run @i{fmc_readl} and @i{fmc_writel} instead,

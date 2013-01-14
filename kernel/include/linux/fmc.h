@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
@@ -23,7 +24,7 @@ struct fmc_driver;
  * to check the version of the data structures we receive.
  */
 
-#define FMC_MAJOR	2
+#define FMC_MAJOR	3
 #define FMC_MINOR	0
 #define FMC_VERSION	((FMC_MAJOR << 16) | FMC_MINOR)
 #define __FMC_MAJOR(x)	((x) >> 16)
@@ -157,17 +158,22 @@ struct fmc_device {
 	struct fmc_operations *op;	/* carrier-provided */
 	int irq;			/* according to host bus. 0 == none */
 	int eeprom_len;			/* Usually 8kB, may be less */
+	int eeprom_addr;		/* 0x50, 0x52 etc */
 	uint8_t *eeprom;		/* Full contents or leading part */
 	char *carrier_name;		/* "SPEC" or similar, for special use */
 	void *carrier_data;		/* "struct spec *" or equivalent */
-	__iomem void *base;		/* May be NULL (Etherbone) */
+	__iomem void *fpga_base;	/* May be NULL (Etherbone) */
+	__iomem void *slot_base;	/* Set by the driver */
+	struct fmc_device **devarray;	/* Allocated by the bus */
+	int slot_id;			/* Index in the slot array */
+	int nr_slots;			/* Number of slots in this carrier */
 	unsigned long memlen;		/* Used for the char device */
 	struct device dev;		/* For Linux use */
 	struct device *hwdev;		/* The underlying hardware device */
 	unsigned long sdbfs_entry;
 	struct sdb_array *sdb;
 	uint32_t device_id;		/* Filled by the device */
-	char *mezzanine_name;		/* Built by fmc-core (allocated) */
+	char *mezzanine_name;		/* Defaults to ``fmc'' */
 	void *mezzanine_data;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
@@ -182,14 +188,14 @@ static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
 {
 	if (unlikely(fmc->op->readl))
 		return fmc->op->readl(fmc, offset);
-	return readl(fmc->base + offset);
+	return readl(fmc->fpga_base + offset);
 }
 static inline void fmc_writel(struct fmc_device *fmc, uint32_t val, int off)
 {
 	if (unlikely(fmc->op->writel))
 		fmc->op->writel(fmc, val, off);
 	else
-		writel(val, fmc->base + off);
+		writel(val, fmc->fpga_base + off);
 }
 
 /* pci-like naming */
@@ -208,6 +214,10 @@ extern int fmc_driver_register(struct fmc_driver *drv);
 extern void fmc_driver_unregister(struct fmc_driver *drv);
 extern int fmc_device_register(struct fmc_device *tdev);
 extern void fmc_device_unregister(struct fmc_device *tdev);
+
+/* Two more for device sets, all driven by the same FPGA */
+extern int fmc_device_register_n(struct fmc_device *fmc, int n);
+extern void fmc_device_unregister_n(struct fmc_device *fmc, int n);
 
 /* Internal cross-calls between files; not exported to otther modules */
 extern int fmc_match(struct device *dev, struct device_driver *drv);
