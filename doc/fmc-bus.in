@@ -868,8 +868,8 @@ with its @i{golden} image:
 
 
 @c ##########################################################################
-@node Writing your FMC Driver
-@chapter Writing your FMC Driver
+@node Writing your FMC Kernel Module
+@chapter Writing your FMC Kernel Module
 
 This chapter includes some suggestions about to write your own drivers
 for @sc{fmc} carriers or mezzanines.  It is the outcome of the experience I
