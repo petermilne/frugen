@@ -268,7 +268,6 @@ registration:
 @item @t{memlen}: if @t{fpga_base} is valid, the length of I/O memory.
 @item @t{hwdev}: to be used in @i{dev_err()} calls.
 @item @t{device_id}: a slot-specific unique integer number.
-@item @t{mezzanine_name}: used as name for the Linux device structure.
 
 @end itemize
 
@@ -290,6 +289,7 @@ later by either the bus or the device driver:
 @item @t{sdb}: @sc{fpga} contents, scanned according to driver's directions.
 @item @t{sdbfs_entry}: @sc{sdb} entry point in @sc{eeprom}: autodetected.
 @item @t{mezzanine_data}: available for the driver.
+@item @t{mezzanine_name}: filled by @i{fmc-bus} during identification.
 
 @end itemize
 
