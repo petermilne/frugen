@@ -219,10 +219,12 @@ extern void fmc_device_unregister(struct fmc_device *tdev);
 extern int fmc_device_register_n(struct fmc_device *fmc, int n);
 extern void fmc_device_unregister_n(struct fmc_device *fmc, int n);
 
-/* Internal cross-calls between files; not exported to otther modules */
+/* Internal cross-calls between files; not exported to other modules */
 extern int fmc_match(struct device *dev, struct device_driver *drv);
 extern int fmc_fill_id_info(struct fmc_device *fmc);
 extern void fmc_free_id_info(struct fmc_device *fmc);
+extern void fmc_dump_eeprom(struct fmc_device *fmc);
+extern void fmc_dump_sdb(struct fmc_device *fmc);
 
 
 #endif /* __LINUX_FMC_H__ */

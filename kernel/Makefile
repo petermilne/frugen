@@ -13,6 +13,7 @@ fmc-y = fmc-core.o
 fmc-y += fmc-match.o
 fmc-y += fmc-sdb.o
 fmc-y += fru-parse.o
+fmc-y += fmc-dump.o
 
 # The library includes <sdb.h>, si point -I directtly there
 ccflags-y += -I$M/include/linux

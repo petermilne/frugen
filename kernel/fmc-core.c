@@ -178,6 +178,9 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 			fmc_free_id_info(fmc);
 			goto out;
 		}
+		/* This device went well, give information to the user */
+		fmc_dump_eeprom(fmc);
+		fmc_dump_sdb(fmc);
 	}
 	return 0;
 
