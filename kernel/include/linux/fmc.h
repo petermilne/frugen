@@ -142,6 +142,10 @@ struct fmc_operations {
 	int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
 
+/* Prefer this helper trather than calling of fmc->reprogram directly */
+extern int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
+		     int sdb_entry);
+
 /*
  * The device reports all information needed to access hw.
  *

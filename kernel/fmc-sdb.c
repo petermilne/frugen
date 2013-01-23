@@ -124,6 +124,30 @@ int fmc_free_sdb_tree(struct fmc_device *fmc)
 }
 EXPORT_SYMBOL(fmc_free_sdb_tree);
 
+/* This helper calls reprogram and inizialized sdb as well */
+int fmc_reprogram(struct fmc_device *fmc, struct fmc_driver *d, char *gw,
+			 int sdb_entry)
+{
+	int ret;
+
+	ret = fmc->op->reprogram(fmc, d, gw);
+	if (ret < 0)
+		return ret;
+	if (sdb_entry < 0)
+		return ret;
+
+	/* We are required to find SDB at a given offset */
+	ret = fmc_scan_sdb_tree(fmc, sdb_entry);
+	if (ret < 0) {
+		dev_err(fmc->hwdev, "Can't find SDB at address 0x%x\n",
+			sdb_entry);
+		return -ENODEV;
+	}
+	fmc_dump_sdb(fmc);
+	return 0;
+}
+EXPORT_SYMBOL(fmc_reprogram);
+
 static void __fmc_show_sdb_tree(struct fmc_device *fmc, struct sdb_array *arr)
 {
 	int i, j, n = arr->len, level = arr->level;
