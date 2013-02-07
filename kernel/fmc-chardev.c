@@ -97,6 +97,7 @@ static ssize_t fc_write(struct file *f, const char __user *buf, size_t count,
 }
 
 static const struct file_operations fc_fops = {
+	.owner = THIS_MODULE,
 	.open = fc_open,
 	.release = fc_release,
 	.llseek = generic_file_llseek,
