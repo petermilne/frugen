@@ -33,7 +33,7 @@ struct fmc_driver;
 /*
  * The device identification, as defined by the IPMI FRU (Field Replaceable
  * Unit) includes four different stings to describe the device. Here we
- * only match the "Board Manutacturer" and the "Board Product Name",
+ * only match the "Board Manufacturer" and the "Board Product Name",
  * ignoring the "Board Serial Number" and "Board Part Number". All 4 are
  * expected to be strings, so they are treated as zero-terminated C strings.
  * Unspecified string (NULL) means "any", so if both are unspecified this
@@ -50,7 +50,7 @@ struct fmc_fru_id {
  * SVEC slot), we can match on SDB devices in the memory image. This
  * match uses an array of devices that must all be present, and the
  * match is based on vendor and device only. Further checks are expected
- * to happen in the probe function. Zero meas "any" and catch-all is allowed.
+ * to happen in the probe function. Zero means "any" and catch-all is allowed.
  */
 struct fmc_sdb_one_id {
 	uint64_t vendor;
@@ -142,7 +142,7 @@ struct fmc_operations {
 	int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
 
-/* Prefer this helper trather than calling of fmc->reprogram directly */
+/* Prefer this helper rather than calling of fmc->reprogram directly */
 extern int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
 		     int sdb_entry);
 
@@ -150,7 +150,7 @@ extern int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
  * The device reports all information needed to access hw.
  *
  * If we have eeprom_len and not contents, the core reads it.
- * Then, parsing of identifiers is done by the corem which fills fmc_fru_id..
+ * Then, parsing of identifiers is done by the core which fills fmc_fru_id..
  * Similarly a device that must be matched based on SDB cores must
  * fill the entry point and the core will scan the bus (FIXME: sdb match)
  */
@@ -229,6 +229,5 @@ extern int fmc_fill_id_info(struct fmc_device *fmc);
 extern void fmc_free_id_info(struct fmc_device *fmc);
 extern void fmc_dump_eeprom(struct fmc_device *fmc);
 extern void fmc_dump_sdb(struct fmc_device *fmc);
-
 
 #endif /* __LINUX_FMC_H__ */
