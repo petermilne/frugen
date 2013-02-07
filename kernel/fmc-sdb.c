@@ -104,7 +104,8 @@ static void __fmc_sdb_free(struct sdb_array *arr)
 {
 	int i, n;
 
-	if (!arr) return;
+	if (!arr)
+		return;
 	n = arr->len;
 	for (i = 0; i < n; i++) {
 		if (IS_ERR(arr->subtree[i]))
@@ -165,9 +166,10 @@ static void __fmc_show_sdb_tree(struct fmc_device *fmc, struct sdb_array *arr)
 		for (ap = arr; ap; ap = ap->parent)
 			base += ap->baseaddr;
 		dev_info(fmc->hwdev, "SDB: ");
+
 		for (j = 0; j < level; j++)
 			printk("   ");
-		switch(r->empty.record_type) {
+		switch (r->empty.record_type) {
 		case sdb_type_interconnect:
 			printk("%08llx:%08x %.19s\n",
 			       __be64_to_cpu(p->vendor_id),
@@ -246,7 +248,8 @@ signed long fmc_find_sdb_device(struct sdb_array *tree,
 		/* found */
 		last = __be64_to_cpu(c->addr_last);
 		first = __be64_to_cpu(c->addr_first);
-		if (sz) *sz = (typeof(*sz))(last + 1 -first);
+		if (sz)
+			*sz = (typeof(*sz))(last + 1 - first);
 		return first + tree->baseaddr;
 	}
 	return res;

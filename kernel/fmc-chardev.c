@@ -15,7 +15,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/fmc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static LIST_HEAD(fc_devices);
 static DEFINE_SPINLOCK(fc_lock);
@@ -96,7 +96,7 @@ static ssize_t fc_write(struct file *f, const char __user *buf, size_t count,
 	return count;
 }
 
-static struct file_operations fc_fops = {
+static const struct file_operations fc_fops = {
 	.open = fc_open,
 	.release = fc_release,
 	.llseek = generic_file_llseek,

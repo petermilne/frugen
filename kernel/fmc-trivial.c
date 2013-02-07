@@ -47,7 +47,7 @@ int t_probe(struct fmc_device *fmc)
 	/* Reprogram, if asked to. ESRCH == no filename specified */
 	ret = -ESRCH;
 	if (fmc->op->reprogram)
-		ret = fmc->op->reprogram(fmc, &t_drv,"");
+		ret = fmc->op->reprogram(fmc, &t_drv, "");
 	if (ret == -ESRCH)
 		ret = 0;
 	if (ret < 0)

@@ -26,7 +26,7 @@ static uint8_t *dump_line(int addr, uint8_t *line, uint8_t *prev)
 	int i;
 
 	if (!prev || memcmp(line, prev, LINELEN)) {
-		printk("%04x: ", addr);
+		pr_info("%04x: ", addr);
 		for (i = 0; i < LINELEN; ) {
 			printk("%02x", line[i]);
 			i++;
@@ -36,7 +36,7 @@ static uint8_t *dump_line(int addr, uint8_t *line, uint8_t *prev)
 	}
 	/* repeated line */
 	if (line == prev + LINELEN)
-		printk("[...]\n");
+		pr_info("[...]\n");
 	return prev;
 }
 
@@ -48,16 +48,15 @@ void fmc_dump_eeprom(struct fmc_device *fmc)
 	if (!fmc_must_dump_eeprom)
 		return;
 
-	printk("FMC: mezzanine %i: %s on %s\n", fmc->slot_id,
+	pr_info("FMC: mezzanine %i: %s on %s\n", fmc->slot_id,
 	       dev_name(fmc->hwdev), fmc->carrier_name);
-	printk("FMC: dumping eeprom 0x%x (%i) bytes\n", fmc->eeprom_len,
+	pr_info("FMC: dumping eeprom 0x%x (%i) bytes\n", fmc->eeprom_len,
 	       fmc->eeprom_len);
 
 	line = fmc->eeprom;
 	prev = NULL;
-	for (i = 0; i < fmc->eeprom_len; i += LINELEN, line += LINELEN) {
+	for (i = 0; i < fmc->eeprom_len; i += LINELEN, line += LINELEN)
 		prev = dump_line(i, line, prev);
-	}
 }
 
 void fmc_dump_sdb(struct fmc_device *fmc)
@@ -86,15 +85,14 @@ void fmc_dump_sdb(struct fmc_device *fmc)
 	 *
 	 * So, lazily, just dump the top-level array
 	 */
-	printk("FMC: mezzanine %i: %s on %s\n", fmc->slot_id,
+	pr_info("FMC: mezzanine %i: %s on %s\n", fmc->slot_id,
 	       dev_name(fmc->hwdev), fmc->carrier_name);
-	printk("FMC: poor dump of sdb first level:\n");
+	pr_info("FMC: poor dump of sdb first level:\n");
 
 	len = fmc->sdb->len * sizeof(union sdb_record);
 	line = (void *)fmc->sdb->record;
 	prev = NULL;
-	for (i = 0; i < len; i += LINELEN, line += LINELEN) {
+	for (i = 0; i < len; i += LINELEN, line += LINELEN)
 		prev = dump_line(i, line, prev);
-	}
 	return;
 }

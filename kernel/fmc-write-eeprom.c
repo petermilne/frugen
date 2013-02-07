@@ -84,9 +84,9 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
 	char *last4 = s + strlen(s) - 4;
 	int err;
 
-	if (!strcmp(last4,".bin"))
+	if (!strcmp(last4, ".bin"))
 		return fwe_run_bin(fmc, fw);
-	if (!strcmp(last4,".tlv")) {
+	if (!strcmp(last4, ".tlv")) {
 		err = fwe_run_tlv(fmc, fw, 0);
 		if (!err)
 			err = fwe_run_tlv(fmc, fw, 1);

@@ -30,7 +30,7 @@ static int fmc_check_version(unsigned long version, const char *name)
 
 static int fmc_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	//struct fmc_device *fdev = to_fmc_device(dev);
+	/* struct fmc_device *fdev = to_fmc_device(dev); */
 
 	/* FIXME: The MODALIAS */
 	add_uevent_var(env, "MODALIAS=%s", "fmc");
@@ -68,7 +68,7 @@ static struct bus_type fmc_bus_type = {
 };
 
 /* Every device must have a release method: provide a default */
-static void __fmc_release(struct device *dev){ }
+static void __fmc_release(struct device *dev) { }
 
 /* This is needed as parent for our devices and dir in sysfs */
 struct device fmc_bus = {
@@ -109,8 +109,9 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 	if (fmc_check_version(fmcs->version, fmcs->carrier_name))
 		return -EINVAL;
 
-	devarray = kmalloc(n * sizeof(*devarray),GFP_KERNEL);
-	if (!devarray) return -ENOMEM;
+	devarray = kmalloc(n * sizeof(*devarray), GFP_KERNEL);
+	if (!devarray)
+		return -ENOMEM;
 
 	/* Make all other checks before continuing, for all devices */
 	for (i = 0, fmc = fmcs; i < n; i++, fmc++) {
@@ -128,11 +129,11 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 		}
 		if (!fmc->carrier_name || !fmc->carrier_data || \
 		    !fmc->device_id) {
-			dev_err(fmc->hwdev, "carrier name and data, and dev_id"
-				"must all be set\n");
+			dev_err(fmc->hwdev,
+				"carrier name, data or dev_id not set\n");
 			ret = -EINVAL;
 		}
-		if(ret)
+		if (ret)
 			break;
 
 		fmc->nr_slots = n;

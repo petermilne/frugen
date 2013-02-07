@@ -257,13 +257,6 @@ int ff_init(void)
 		device_unregister(&ff->dev);
 		return ret;
 	}
-
-
-
-	//schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
-
-
-
 	return ret;
 }
 

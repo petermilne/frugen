@@ -75,7 +75,7 @@ int fmc_fill_id_info(struct fmc_device *fmc)
 		goto out;
 	}
 	if (!fru_header_cksum_ok(h)) {
-		dev_warn(fmc->hwdev,"FRU: wrong header checksum\n");
+		dev_warn(fmc->hwdev, "FRU: wrong header checksum\n");
 		goto out;
 	}
 	bia = fru_get_board_area(h);
