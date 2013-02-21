@@ -194,7 +194,6 @@ out:
 	kfree(fmcs->devarray);
 	for (i = 0, fmc = fmcs; i < n; i++, fmc++)
 		fmc->devarray = NULL;
-	fmc_free_id_info(fmc);
 	return ret;
 
 }
@@ -237,8 +236,10 @@ static int fmc_init(void)
 	int err;
 
 	err = device_register(&fmc_bus);
-	if (err)
+	if (err) {
+		put_device(&fmc_bus);
 		return err;
+	}
 	err = bus_register(&fmc_bus_type);
 	if (err)
 		device_unregister(&fmc_bus);

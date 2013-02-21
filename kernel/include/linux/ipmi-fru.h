@@ -130,6 +130,6 @@ extern char *fru_get_serial_number(struct fru_common_header *header);
 extern char *fru_get_part_number(struct fru_common_header *header);
 
 /* This must be defined by the caller of the above functions */
-extern void *fru_alloc(int size);
+extern void *fru_alloc(size_t size);
 
 #endif /* __LINUX_IMPI_FRU_H__ */

@@ -235,8 +235,10 @@ int ff_init(void)
 	ff->fmc = ff_template_fmc;
 
 	ret = device_register(&ff->dev);
-	if (ret)
+	if (ret) {
+		put_device(&ff->dev);
 		return ret;
+	}
 
 	/* If the user passed "eeprom=" as a parameter, fetch it */
 	if (ff_eeprom) {

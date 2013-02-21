@@ -13,7 +13,7 @@
 #include <linux/ipmi-fru.h>
 
 /* The fru parser is both user and kernel capable: it needs alloc */
-void *fru_alloc(int size)
+void *fru_alloc(size_t size)
 {
 	return kzalloc(size, GFP_KERNEL);
 }
