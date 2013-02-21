@@ -68,7 +68,8 @@ struct fmc_device_id {
 	int sdb_id_nr;
 };
 
-#define FMC_MAX_CARDS 16 /* That many with the same matching driver... */
+/* This sizes the module_param_array used by generic module parameters */
+#define FMC_MAX_CARDS 32
 
 /* The driver is a pretty simple thing */
 struct fmc_driver {
