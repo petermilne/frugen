@@ -77,7 +77,7 @@ enum fru_type {
  * some helpers
  */
 static inline struct fru_board_info_area *fru_get_board_area(
-	struct fru_common_header *header)
+	const struct fru_common_header *header)
 {
 	/* we know for sure that the header is 8 bytes in size */
 	return (struct fru_board_info_area *)(header + header->board_area_off);

@@ -149,10 +149,11 @@ int fmc_reprogram(struct fmc_device *fmc, struct fmc_driver *d, char *gw,
 }
 EXPORT_SYMBOL(fmc_reprogram);
 
-static void __fmc_show_sdb_tree(struct fmc_device *fmc, struct sdb_array *arr)
+static void __fmc_show_sdb_tree(const struct fmc_device *fmc,
+				const struct sdb_array *arr)
 {
 	int i, j, n = arr->len, level = arr->level;
-	struct sdb_array *ap;
+	const struct sdb_array *ap;
 
 	for (i = 0; i < n; i++) {
 		unsigned long base;
@@ -210,7 +211,7 @@ static void __fmc_show_sdb_tree(struct fmc_device *fmc, struct sdb_array *arr)
 	}
 }
 
-void fmc_show_sdb_tree(struct fmc_device *fmc)
+void fmc_show_sdb_tree(const struct fmc_device *fmc)
 {
 	if (!fmc->sdb)
 		return;

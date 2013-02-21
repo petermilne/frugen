@@ -207,7 +207,7 @@ static inline void fmc_writel(struct fmc_device *fmc, uint32_t val, int off)
 }
 
 /* pci-like naming */
-static inline void *fmc_get_drvdata(struct fmc_device *fmc)
+static inline void *fmc_get_drvdata(const struct fmc_device *fmc)
 {
 	return dev_get_drvdata(&fmc->dev);
 }
@@ -231,7 +231,7 @@ extern void fmc_device_unregister_n(struct fmc_device *fmc, int n);
 extern int fmc_match(struct device *dev, struct device_driver *drv);
 extern int fmc_fill_id_info(struct fmc_device *fmc);
 extern void fmc_free_id_info(struct fmc_device *fmc);
-extern void fmc_dump_eeprom(struct fmc_device *fmc);
-extern void fmc_dump_sdb(struct fmc_device *fmc);
+extern void fmc_dump_eeprom(const struct fmc_device *fmc);
+extern void fmc_dump_sdb(const struct fmc_device *fmc);
 
 #endif /* __LINUX_FMC_H__ */

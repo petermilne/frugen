@@ -21,7 +21,8 @@ module_param_named(dump_sdb, fmc_must_dump_sdb, int, 0644);
 #define LINELEN 16
 
 /* Dumping 8k takes oh so much: avoid duplicate lines */
-static uint8_t *dump_line(int addr, uint8_t *line, uint8_t *prev)
+static const uint8_t *dump_line(int addr, const uint8_t *line,
+				const uint8_t *prev)
 {
 	int i;
 
@@ -40,9 +41,9 @@ static uint8_t *dump_line(int addr, uint8_t *line, uint8_t *prev)
 	return prev;
 }
 
-void fmc_dump_eeprom(struct fmc_device *fmc)
+void fmc_dump_eeprom(const struct fmc_device *fmc)
 {
-	uint8_t *line, *prev;
+	const uint8_t *line, *prev;
 	int i;
 
 	if (!fmc_must_dump_eeprom)
@@ -59,9 +60,9 @@ void fmc_dump_eeprom(struct fmc_device *fmc)
 		prev = dump_line(i, line, prev);
 }
 
-void fmc_dump_sdb(struct fmc_device *fmc)
+void fmc_dump_sdb(const struct fmc_device *fmc)
 {
-	uint8_t *line, *prev;
+	const uint8_t *line, *prev;
 	int i, len;
 
 	if (!fmc->sdb)
