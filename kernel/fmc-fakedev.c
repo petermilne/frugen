@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/workqueue.h>
 #include <linux/fmc.h>
@@ -74,6 +75,8 @@ struct ff_dev {
 	struct delayed_work work;
 };
 
+static struct ff_dev *ff_current_dev; /* We have 1 carrier, 1 slot */
+
 static int ff_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 			  char *gw)
 {
@@ -108,13 +111,16 @@ static int ff_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 	return -EOPNOTSUPP;
 }
 
+/* FIXME: should also have some fake FMC GPIO mapping */
+
+
 /*
- * FIXME: add some fake GPIO mapping
+ * This work function is called when we changed the eeprom. It removes
+ * the current fmc device and registers a new one, probably with different
+ * identifiers.
  */
+static struct ff_dev *ff_dev_create(void); /* defined later */
 
-static struct fmc_device ff_template_fmc; /* defined later */
-
-/* unregister and register again, after we changed eeprom */
 static void ff_work_fn(struct work_struct *work)
 {
 	struct delayed_work *dw = to_delayed_work(work);
@@ -122,17 +128,23 @@ static void ff_work_fn(struct work_struct *work)
 	int ret;
 
 	fmc_device_unregister(&ff->fmc);
+	device_unregister(&ff->dev);
+	ff_current_dev = NULL;
 
-	/* copy the template, so all lists are empty */
-	ff->fmc = ff_template_fmc;
-	ret = fmc_device_register(&ff->fmc);
-	if (ret < 0) {
-		/* Serious problem: we will crash at rmmod time */
-		pr_err("%s: can't re-register FMC device\n", __func__);
+	ff = ff_dev_create();
+	if (IS_ERR(ff)) {
+		pr_warning("%s: can't re-create FMC device\n", __func__);
 		return;
 	}
-}
+	ret = fmc_device_register(&ff->fmc);
+	if (ret < 0) {
+		device_unregister(&ff->dev);
+		pr_warning("%s: can't re-register FMC device\n", __func__);
+		return;
+	}
 
+	ff_current_dev = ff;
+}
 
 /* low-level i2c */
 int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
@@ -149,7 +161,7 @@ int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		    const void *buf, size_t size)
 {
-	struct ff_dev *ff = container_of(fmc, struct ff_dev, fmc);
+	struct ff_dev *ff = fmc->carrier_data;
 
 	if (offset > FF_EEPROM_SIZE)
 		return -EINVAL;
@@ -197,48 +209,67 @@ static struct fmc_operations ff_fmc_operations = {
 	.write_ee =		ff_write_ee,
 };
 
-/* Every device must have a release method: provide a default */
-static void __ff_release(struct device *dev)
+/* This device is kmalloced: release it */
+static void ff_dev_release(struct device *dev)
 {
-	memset(dev, 0, sizeof(*dev));
-	dev->release = __ff_release;
+	struct ff_dev *ff = container_of(dev, struct ff_dev, dev);
+	kfree(ff);
 }
-
-static struct ff_dev ff_static_dev = {
-	.dev = {
-		.release = __ff_release,
-	}, .fmc = {
-		/* the template below will be copied herein */
-	}
-};
 
 static struct fmc_device ff_template_fmc = {
 	.version = FMC_VERSION,
+	.owner = THIS_MODULE,
 	.carrier_name = "fake",
 	.device_id = 0xf001, /* fool */
 	.eeprom = ff_eeimg,
+	.eeprom_addr = 0x50,
 	.eeprom_len = sizeof(ff_eeimg),
+	.nr_slots = 1,
+	.memlen = 0x1000, /* 4k, to show something */
 	.op = &ff_fmc_operations,
-	.hwdev = &ff_static_dev.dev,
+	.hwdev = NULL, /* filled at creation time */
 	.flags = FMC_DEVICE_HAS_GOLDEN,
 };
+
+static struct ff_dev *ff_dev_create(void)
+{
+	struct ff_dev *ff;
+	int ret;
+
+	ff = kzalloc(sizeof(*ff), GFP_KERNEL);
+	if (!ff)
+		return ERR_PTR(-ENOMEM);
+	dev_set_name(&ff->dev, "fake-fmc");
+	ff->dev.release = ff_dev_release;
+
+	ret = device_register(&ff->dev);
+	if (ret < 0) {
+		put_device(&ff->dev);
+		kfree(ff);
+		return ERR_PTR(ret);
+	}
+
+	/* Create an fmc structure that refers to this new "hw" device */
+	ff->fmc = ff_template_fmc;
+	ff->fmc.hwdev = &ff->dev;
+	ff->fmc.carrier_data = ff;
+	ff_template_fmc.device_id++; /* for next time */
+
+	INIT_DELAYED_WORK(&ff->work, ff_work_fn);
+	return ff;
+}
 
 /* init and exit */
 int ff_init(void)
 {
-	struct ff_dev *ff = &ff_static_dev;
+	struct ff_dev *ff;
 	const struct firmware *fw;
 	int len, ret = 0;
 
-	INIT_DELAYED_WORK(&ff->work, ff_work_fn);
-	dev_set_name(&ff->dev, "fake-fmc");
-	ff->fmc = ff_template_fmc;
 
-	ret = device_register(&ff->dev);
-	if (ret) {
-		put_device(&ff->dev);
-		return ret;
-	}
+	ff = ff_dev_create();
+	if (IS_ERR(ff))
+		return PTR_ERR(ff);
 
 	/* If the user passed "eeprom=" as a parameter, fetch it */
 	if (ff_eeprom) {
@@ -258,16 +289,17 @@ int ff_init(void)
 		device_unregister(&ff->dev);
 		return ret;
 	}
+	ff_current_dev = ff;
 	return ret;
 }
 
 void ff_exit(void)
 {
-	struct ff_dev *ff = &ff_static_dev;
-
-	cancel_delayed_work_sync(&ff->work);
-	fmc_device_unregister(&ff->fmc);
-	device_unregister(&ff->dev);
+	if (ff_current_dev) {
+		cancel_delayed_work_sync(&ff_current_dev->work);
+		fmc_device_unregister(&ff_current_dev->fmc);
+		device_unregister(&ff_current_dev->dev);
+	}
 }
 
 module_init(ff_init);
