@@ -19,7 +19,7 @@
 
 /*
  * These structures match the unaligned crap we have in FRU1011.pdf
- * (http://download.intel.com/design/servers/ipmi/FRU1011)
+ * (http://download.intel.com/design/servers/ipmi/FRU1011.pdf)
  */
 
 /* chapter 8, page 5 */
@@ -122,13 +122,6 @@ static inline int fru_is_eof(struct fru_type_length *tl)
  */
 extern int fru_header_cksum_ok(struct fru_common_header *header);
 extern int fru_bia_cksum_ok(struct fru_board_info_area *bia);
-
-/*
- * FIXME: is the following needed?
- *
- * extern int fru_dump_info(struct fru_common_header *header, char *prefix,
- *			 int(*p)(char *fmt, ...));
- */
 
 /* All these 4 return allocated strings by calling fru_alloc() */
 extern char *fru_get_board_manufacturer(struct fru_common_header *header);

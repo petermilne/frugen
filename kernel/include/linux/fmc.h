@@ -32,7 +32,7 @@ struct fmc_driver;
 
 /*
  * The device identification, as defined by the IPMI FRU (Field Replaceable
- * Unit) includes four different stings to describe the device. Here we
+ * Unit) includes four different strings to describe the device. Here we
  * only match the "Board Manufacturer" and the "Board Product Name",
  * ignoring the "Board Serial Number" and "Board Part Number". All 4 are
  * expected to be strings, so they are treated as zero-terminated C strings.
@@ -93,7 +93,7 @@ struct fmc_driver {
 
 /*
  * Drivers may need to configure gpio pins in the carrier. To read input
- * (a very uncommon opeation, and definitely not in the hot paths), just
+ * (a very uncommon operation, and definitely not in the hot paths), just
  * configure one gpio only and get 0 or 1 as retval of the config method
  */
 struct fmc_gpio {
@@ -124,7 +124,7 @@ struct fmc_gpio {
 
 /*
  * The operations are offered by each carrier and should make driver
- * design completely independent of th carrier. Named GPIO pins may be
+ * design completely independent of the carrier. Named GPIO pins may be
  * the exception.
  */
 struct fmc_operations {
@@ -187,7 +187,10 @@ struct fmc_device {
 #define FMC_DEVICE_NO_MEZZANINE		4
 #define FMC_DEVICE_MATCH_SDB		8 /* fmc-core must scan sdb in fpga */
 
-/* If the carrier offers no readl/writel, use base address */
+/*
+ * If fpga_base can be used, the carrier offers no readl/writel methods, and
+ * this expands to a single, fast, I/O access.
+ */
 static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
 {
 	if (unlikely(fmc->op->readl))

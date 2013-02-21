@@ -22,10 +22,10 @@ module_param_named(eeprom, ff_eeprom, charp, 0444);
 /*
  * Eeprom built from these commands:
 
-      ../fru-generator -v fake-vendor -n fake-design-for-testing \
-                -s 01234 -p none > IPMI-FRU
+	../fru-generator -v fake-vendor -n fake-design-for-testing \
+		-s 01234 -p none > IPMI-FRU
 
-      gensdbfs . ../fake-eeprom.bin
+	gensdbfs . ../fake-eeprom.bin
 */
 static char ff_eeimg[FF_EEPROM_SIZE] = {
 	0x01, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x00, 0xf2, 0x01, 0x0b, 0x00, 0xb2,
@@ -136,7 +136,7 @@ static void ff_work_fn(struct work_struct *work)
 
 /* low-level i2c */
 int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
-                void *buf, size_t size)
+		void *buf, size_t size)
 {
 	if (offset > FF_EEPROM_SIZE)
 		return -EINVAL;
@@ -147,7 +147,7 @@ int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 }
 
 int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
-                 const void *buf, size_t size)
+		    const void *buf, size_t size)
 {
 	struct ff_dev *ff = container_of(fmc, struct ff_dev, fmc);
 
@@ -155,7 +155,7 @@ int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		return -EINVAL;
 	if (offset + size > FF_EEPROM_SIZE)
 		size = FF_EEPROM_SIZE - offset;
-	printk("size %i\n", size);
+	pr_info("%s: size %i\n", __func__, size);
 	memcpy(ff_eeimg + offset, buf, size);
 	schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
 	return size;
@@ -200,7 +200,6 @@ static struct fmc_operations ff_fmc_operations = {
 /* Every device must have a release method: provide a default */
 static void __ff_release(struct device *dev)
 {
-	printk("%s\n", __func__);
 	memset(dev, 0, sizeof(*dev));
 	dev->release = __ff_release;
 }
@@ -246,7 +245,7 @@ int ff_init(void)
 			dev_err(&ff->dev, "Can't load \"%s\" (error %i)\n",
 				ff_eeprom, -ret);
 		} else {
-			len = min(fw->size, (size_t)FF_EEPROM_SIZE);
+			len = min_t(size_t, fw->size, (size_t)FF_EEPROM_SIZE);
 			memcpy(ff_eeimg, fw->data, len);
 			release_firmware(fw);
 		}

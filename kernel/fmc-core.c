@@ -67,7 +67,7 @@ static struct bus_type fmc_bus_type = {
 	.shutdown = fmc_shutdown,
 };
 
-/* Every device must have a release method: provide a default */
+/* We really have nothing to release in here */
 static void __fmc_release(struct device *dev) { }
 
 /* This is needed as parent for our devices and dir in sysfs */
@@ -97,7 +97,7 @@ EXPORT_SYMBOL(fmc_driver_unregister);
 
 /*
  * When a device set is registered, all eeproms must be read
- *and all FRU must be parsed
+ * and all FRUs must be parsed
  */
 int fmc_device_register_n(struct fmc_device *fmcs, int n)
 {
@@ -136,7 +136,7 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 		if (ret)
 			break;
 
-		fmc->nr_slots = n;
+		fmc->nr_slots = n; /* each slot must know how many are there */
 		devarray[i] = fmc;
 	}
 	if (ret) {

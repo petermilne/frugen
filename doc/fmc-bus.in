@@ -60,7 +60,7 @@ Linux.  @sc{fmc} (FPGA Mezzanine Card) is the standard we use for our
 I/O devices, in the context of White Rabbit and related hardware.
 
 In our I/O environments we need to write drivers for each mezzanine
-card, and such drivers must work independent of the carrier being used.
+card, and such drivers must work regardless of the carrier being used.
 To achieve this, we abstract the @sc{fmc} interface.
 
 We have a carrier for PCI-E called @sc{spec} and one for VME called
@@ -99,15 +99,15 @@ Trade Association} and ratified by ANSI, the American National
 Standard Institute.  The official documentation is called ``ANSI-VITA
 57.1''.
 
-The @sc{fmc} card is an almost square @sc{psb}, around 70x75 millimetres, that
+The @sc{fmc} card is an almost square @sc{pcb}, around 70x75 millimeters, that
 is called @i{mezzanine} in this document.  It usually lives plugged
-into into another @sc{psb} for power supply and control; such bigger
+into another @sc{pcb} for power supply and control; such bigger
 circuit board is called @i{carrier} from now on, and a single carrier
 may host more than one mezzanine.
 
-In the typical application the mezzanine is mostly analogical while
+In the typical application the mezzanine is mostly analog while
 the carrier is mostly digital, and hosts an @sc{fpga} that must be
-programmed to match the specific mezzanine and the desired
+configured to match the specific mezzanine and the desired
 application. Thus, you may need to load different @sc{fpga} images to
 drive different instances of the same mezzanine.
 
@@ -551,7 +551,7 @@ to cache the result of this mapping.
 All carriers must map their I/O lines
 to the sets above starting from zero.  The @sc{spec}, for example, maps
 interrupt pins 0 and 1, and test points 0 through 3 (even if the test
-points on the @sc{psb} are called 5,6,7,8).
+points on the @sc{pcb} are called 5,6,7,8).
 
 If, for example, a driver requires a free LED and a test point (for a
 scope probe to be plugged at some point during development) it may ask
@@ -905,8 +905,8 @@ Please note that you'll most likely want to use @sc{sdbfs} to build your
 environment. For this reason the TLV format is not expected to be used much
 and is not expected to be developed further.
 
-If you want to experiment with reflashing fake @sc{eeprom} devices,
-you cn use the @t{fmc-fakedev.ko} module (see @ref{fmc-fakedev}).
+If you want to try reflashing fake @sc{eeprom} devices,
+you can use the @t{fmc-fakedev.ko} module (see @ref{fmc-fakedev}).
 Whenever you change the image starting at offset 0, it will deregister
 and register again after two seconds.  Please note, however, that if
 @i{fmc-write-eeprom} is still loaded, the system will associate it to
@@ -948,15 +948,15 @@ Currently the driver only supports @i{read} and @i{write}: you can
 The driver assumes all registers are 32-bit in size, and only accepts
 a single read or write per system call. However, as a result of Unix
 read and write semantics, users can simply @i{fread} or @i{fwrite}
-bigger areas on order to dump or store bigger memory areas.
+bigger areas in order to dump or store bigger memory areas.
 
 There is currently no support for @i{mmap}, user-space interrupt
 management and DMA buffers. They may be added in later versions, if
 the need arises.
 
 The example below shows raw access to a @sc{spec}
-card programmed with it's @i{golden} @sc{fpga} file, that features
-an @sc{sdb} structure at offset 256 -- i.e. 64 words. The 
+card programmed with its @i{golden} @sc{fpga} file, that features
+an @sc{sdb} structure at offset 256 -- i.e. 64 words.
 The mezzanine's @sc{eeprom} in this case is not programmed, so the
 default name is @t{fmc-@i{<bus><devfn>}}, and there are two
 cards in the system:
@@ -1159,7 +1159,7 @@ fixed a bug in it), this is tracked by a commit in the supermodule,
 because the hosting @i{tree} must be modified to record the new
 submodule commit. It is correct, in general, to have a commit in the
 supermodule that just updates the commit identifier of the submodule.
-Sometimes, however, you commit the new submodule's version together
+Sometimes with, however, you commit the new submodule's version together
 with changes in the supermodule that use it (like they were parts of
 the same package).
 
@@ -1707,6 +1707,9 @@ badly.
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
-@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent @sc{svec}
+@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent svec
 @c  LocalWords:  setchapternewpage finalout Etherbone eeprom gateware busid
-@c  LocalWords:  GPIO fpga ohwr smallexample spusa insmod
+@c  LocalWords:  GPIO fpga ohwr smallexample spusa insmod struct const inline
+@c  LocalWords:  readl writel itemx config gpio modinfo sdbfs fakedev fdelay
+@c  LocalWords:  hwdev morgana supermodule prereq ccflags KBUILD filesystem
+@c  LocalWords:  linux uint

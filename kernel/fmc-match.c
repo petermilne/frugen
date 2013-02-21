@@ -32,7 +32,7 @@ int fmc_match(struct device *dev, struct device_driver *drv)
 		dev_warn(fdev->hwdev, "Driver has no ID: matches all\n");
 		matched = 1;
 	} else {
-		for (i = 0; i <  fdrv->id_table.fru_id_nr; i++, fid++) {
+		for (i = 0; i < fdrv->id_table.fru_id_nr; i++, fid++) {
 			if (strcmp(fid->manufacturer, fdev->id.manufacturer))
 				continue;
 			if (strcmp(fid->product_name, fdev->id.product_name))
@@ -53,7 +53,7 @@ int fmc_fill_id_info(struct fmc_device *fmc)
 	struct fru_board_info_area *bia;
 	int ret, allocated = 0;
 
-	/* If we kwown the eeprom length, try to read it off the device */
+	/* If we know the eeprom length, try to read it off the device */
 	if (fmc->eeprom_len && !fmc->eeprom) {
 		fmc->eeprom = kzalloc(fmc->eeprom_len, GFP_KERNEL);
 		if (!fmc->eeprom)

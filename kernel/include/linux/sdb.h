@@ -18,7 +18,7 @@
  * magic number at the head of the interconnect record
  */
 
-/* Product, 40 bytes at offset 24, 8-byte alignmed
+/* Product, 40 bytes at offset 24, 8-byte aligned
  *
  * device_id is vendor-assigned; version is device-specific,
  * date is hex (e.g 0x20120501), name is UTF-8, blank-filled
@@ -34,7 +34,7 @@ struct sdb_product {
 };
 
 /*
- * Component, 56 bytes at offset 8, 8-byte aligned 
+ * Component, 56 bytes at offset 8, 8-byte aligned
  *
  * The address range is first to last, inclusive
  * (for example 0x100000 - 0x10ffff)
@@ -105,7 +105,7 @@ struct sdb_integration {
 /* Type 0xff: empty
  *
  * this allows keeping empty slots during development,
- * so they can be filled later with miminal efforts and
+ * so they can be filled later with minimal effort and
  * no misleading description is ever shipped -- hopefully.
  * It can also be used to pad a table to a desired length.
  */

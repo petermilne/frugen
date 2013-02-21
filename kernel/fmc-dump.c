@@ -79,9 +79,10 @@ void fmc_dump_sdb(struct fmc_device *fmc)
 	/* If bigger than 1, dump it seriously, to help debugging */
 
 	/*
-	 * FIXME: we should really use libsdbfs, but it doesn't
-	 * support directories yet, and it requires better intergration
-	 * (it should be used instead of fmc-specific code).
+	 * Here we should really use libsdbfs (which is designed to
+	 * work in kernel space as well) , but it doesn't support
+	 * directories yet, and it requires better intergration (it
+	 * should be used instead of fmc-specific code).
 	 *
 	 * So, lazily, just dump the top-level array
 	 */

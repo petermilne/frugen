@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2012 CERN (www.cern.ch)
+ * Author: Alessandro Rubini <rubini@gnudd.com>
+ *
+ * Released to the public domain, as example to be reused
+ */
+
 /* A trivial fmc driver that can load a gateware file and reports interrupts */
 #include <linux/module.h>
 #include <linux/init.h>
