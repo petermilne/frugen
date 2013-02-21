@@ -149,9 +149,6 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 
 		fmc->devarray = devarray;
 
-		/* make sure dev is not initialized, or it complains */
-		memset(&fmc->dev.kobj, 0, sizeof(struct kobject));
-
 		device_initialize(&fmc->dev);
 		if (!fmc->dev.release)
 			fmc->dev.release = __fmc_release;
