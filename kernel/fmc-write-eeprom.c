@@ -42,7 +42,7 @@ static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 		thisaddr = get_unaligned_le16(p+1);
 		thislen = get_unaligned_le16(p+3);
 		if (p[0] != 'w' || thislen + 5 > len) {
-			dev_err(fmc->hwdev, "invalid tlv at offset %i\n",
+			dev_err(fmc->hwdev, "invalid tlv at offset %ti\n",
 				p - fw->data);
 			return -EINVAL;
 		}
@@ -69,7 +69,7 @@ static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
 {
 	int ret;
 
-	dev_info(fmc->hwdev, "programming %i bytes\n", fw->size);
+	dev_info(fmc->hwdev, "programming %zi bytes\n", fw->size);
 	ret = fmc->op->write_ee(fmc, 0, (void *)fw->data, fw->size);
 	if (ret < 0) {
 		dev_info(fmc->hwdev, "write_eeprom: error %i\n", ret);

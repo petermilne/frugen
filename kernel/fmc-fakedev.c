@@ -167,7 +167,7 @@ int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		return -EINVAL;
 	if (offset + size > FF_EEPROM_SIZE)
 		size = FF_EEPROM_SIZE - offset;
-	pr_info("%s: size %i\n", __func__, size);
+	pr_info("%s: size %zi\n", __func__, size);
 	memcpy(ff_eeimg + offset, buf, size);
 	schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
 	return size;
