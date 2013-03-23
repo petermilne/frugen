@@ -18,7 +18,7 @@
 
 #include "../kernel/fru-parse.c" /* Aaaargh!!!!! horrible hack... */
 
-void *fru_alloc(int size)
+void *fru_alloc(size_t size)
 {
 	return malloc(size);
 }
