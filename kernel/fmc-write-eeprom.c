@@ -42,18 +42,18 @@ static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 		thisaddr = get_unaligned_le16(p+1);
 		thislen = get_unaligned_le16(p+3);
 		if (p[0] != 'w' || thislen + 5 > len) {
-			dev_err(fmc->hwdev, "invalid tlv at offset %ti\n",
+			dev_err(&fmc->dev, "invalid tlv at offset %ti\n",
 				p - fw->data);
 			return -EINVAL;
 		}
 		err = 0;
 		if (write) {
-			dev_info(fmc->hwdev, "write %i bytes at 0x%04x\n",
+			dev_info(&fmc->dev, "write %i bytes at 0x%04x\n",
 				 thislen, thisaddr);
 			err = fmc->op->write_ee(fmc, thisaddr, p + 5, thislen);
 		}
 		if (err < 0) {
-			dev_err(fmc->hwdev, "write failure @0x%04x\n",
+			dev_err(&fmc->dev, "write failure @0x%04x\n",
 				thisaddr);
 			return err;
 		}
@@ -61,7 +61,7 @@ static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 		len -= 5 + thislen;
 	}
 	if (write)
-		dev_info(fmc->hwdev, "write_eeprom: success\n");
+		dev_info(&fmc->dev, "write_eeprom: success\n");
 	return 0;
 }
 
@@ -69,13 +69,13 @@ static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
 {
 	int ret;
 
-	dev_info(fmc->hwdev, "programming %zi bytes\n", fw->size);
+	dev_info(&fmc->dev, "programming %zi bytes\n", fw->size);
 	ret = fmc->op->write_ee(fmc, 0, (void *)fw->data, fw->size);
 	if (ret < 0) {
-		dev_info(fmc->hwdev, "write_eeprom: error %i\n", ret);
+		dev_info(&fmc->dev, "write_eeprom: error %i\n", ret);
 		return ret;
 	}
-	dev_info(fmc->hwdev, "write_eeprom: success\n");
+	dev_info(&fmc->dev, "write_eeprom: success\n");
 	return 0;
 }
 
@@ -92,7 +92,7 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
 			err = fwe_run_tlv(fmc, fw, 1);
 		return err;
 	}
-	dev_err(fmc->hwdev, "invalid file name \"%s\"\n", s);
+	dev_err(&fmc->dev, "invalid file name \"%s\"\n", s);
 	return -EINVAL;
 }
 
@@ -107,7 +107,7 @@ int fwe_probe(struct fmc_device *fmc)
 {
 	int err, index = 0;
 	const struct firmware *fw;
-	struct device *dev = fmc->hwdev;
+	struct device *dev = &fmc->dev;
 	char *s;
 
 	if (!fwe_drv.busid_n) {
@@ -117,20 +117,26 @@ int fwe_probe(struct fmc_device *fmc)
 	}
 	if (fmc->op->validate)
 		index = fmc->op->validate(fmc, &fwe_drv);
+	if (index < 0) {
+		pr_err("%s: refusing device \"%s\"\n", KBUILD_MODNAME,
+		       dev_name(dev));
+		return -ENODEV;
+	}
 	if (index >= fwe_file_n) {
-		dev_err(dev, "%s: device returned index %i out of range\n",
+		pr_err("%s: no filename for device index %i\n",
 			KBUILD_MODNAME, index);
 		return -ENODEV;
 	}
 	s = fwe_file[index];
 	if (!s) {
-		dev_err(dev, "%s: no filename given: not programming\n",
-			KBUILD_MODNAME);
+		pr_err("%s: no filename for \"%s\" not programming\n",
+		       KBUILD_MODNAME, dev_name(dev));
 		return -ENOENT;
 	}
 	err = request_firmware(&fw, s, dev);
 	if (err < 0) {
-		dev_err(dev, "request firmware \"%s\": error %i\n", s, err);
+		dev_err(&fmc->dev, "request firmware \"%s\": error %i\n",
+			s, err);
 		return err;
 	}
 	fwe_run(fmc, fw, s);

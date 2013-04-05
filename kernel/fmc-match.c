@@ -29,7 +29,7 @@ int fmc_match(struct device *dev, struct device_driver *drv)
 	/* This currently only matches the EEPROM (FRU id) */
 	fid = fdrv->id_table.fru_id;
 	if (!fid) {
-		dev_warn(fdev->hwdev, "Driver has no ID: matches all\n");
+		dev_warn(&fdev->dev, "Driver has no ID: matches all\n");
 		matched = 1;
 	} else {
 		for (i = 0; i < fdrv->id_table.fru_id_nr; i++, fid++) {

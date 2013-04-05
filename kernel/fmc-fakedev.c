@@ -100,10 +100,10 @@ static int ff_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		return 0;
 	}
 
-	dev_info(fmc->hwdev, "reprogramming with %s\n", gw);
+	dev_info(&fmc->dev, "reprogramming with %s\n", gw);
 	ret = request_firmware(&fw, gw, fmc->hwdev);
 	if (ret < 0) {
-		dev_warn(fmc->hwdev, "request firmware \"%s\": error %i\n",
+		dev_warn(&fmc->dev, "request firmware \"%s\": error %i\n",
 			 gw, ret);
 		goto out;
 	}
@@ -177,7 +177,8 @@ int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		return -EINVAL;
 	if (offset + size > FF_EEPROM_SIZE)
 		size = FF_EEPROM_SIZE - offset;
-	pr_info("%s: size %zi\n", __func__, size);
+	dev_info(&fmc->dev, "write_eeprom: offset %i, size %zi\n",
+		 (int)offset, size);
 	memcpy(fmc->eeprom + offset, buf, size);
 	schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
 	return size;
