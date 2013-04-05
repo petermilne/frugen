@@ -210,6 +210,21 @@ void ff_writel(struct fmc_device *fmc, uint32_t value, int offset)
 	return;
 }
 
+/* validate is useful so fmc-write-eeprom will not reprogram every 2 seconds */
+static int ff_validate(struct fmc_device *fmc, struct fmc_driver *drv)
+{
+	int i;
+
+	if (!drv->busid_n)
+		return 0; /* everyhing is valid */
+	for (i = 0; i < drv->busid_n; i++)
+		if (drv->busid_val[i] == fmc->device_id)
+			return i;
+	return -ENOENT;
+}
+
+
+
 static struct fmc_operations ff_fmc_operations = {
 	.readl =		ff_readl,
 	.writel =		ff_writel,
@@ -217,6 +232,7 @@ static struct fmc_operations ff_fmc_operations = {
 	.irq_request =		ff_irq_request,
 	.read_ee =		ff_read_ee,
 	.write_ee =		ff_write_ee,
+	.validate =		ff_validate,
 };
 
 /* This device is kmalloced: release it */
