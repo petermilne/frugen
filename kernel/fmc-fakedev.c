@@ -245,7 +245,7 @@ static void ff_dev_release(struct device *dev)
 static struct fmc_device ff_template_fmc = {
 	.version = FMC_VERSION,
 	.owner = THIS_MODULE,
-	.carrier_name = "fake",
+	.carrier_name = "fake-fmc-carrier",
 	.device_id = 0xf001, /* fool */
 	.eeprom_len = sizeof(ff_eeimg[0]),
 	.memlen = 0x1000, /* 4k, to show something */
@@ -262,7 +262,7 @@ static struct ff_dev *ff_dev_create(void)
 	ff = kzalloc(sizeof(*ff), GFP_KERNEL);
 	if (!ff)
 		return ERR_PTR(-ENOMEM);
-	dev_set_name(&ff->dev, "fake-fmc");
+	dev_set_name(&ff->dev, "fake-fmc-carrier");
 	ff->dev.release = ff_dev_release;
 
 	ret = device_register(&ff->dev);
