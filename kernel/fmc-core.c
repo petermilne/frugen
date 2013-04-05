@@ -162,13 +162,11 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 
 		/* Name from mezzanine info or carrier info. Or 0,1,2.. */
 		device_id = fmc->device_id;
-		if (!fmc->mezzanine_name) {
-			dev_warn(fmc->hwdev, "No mezzanine_name found\n");
+		if (!fmc->mezzanine_name)
 			dev_set_name(&fmc->dev, "fmc-%04x", device_id);
-		} else {
+		else
 			dev_set_name(&fmc->dev, "%s-%04x", fmc->mezzanine_name,
 				     device_id);
-		}
 		ret = device_add(&fmc->dev);
 		if (ret < 0) {
 			dev_err(fmc->hwdev, "Failed in registering \"%s\"\n",
