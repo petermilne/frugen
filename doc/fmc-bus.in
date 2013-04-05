@@ -592,14 +592,16 @@ using the kernel's GPIO mechanisms.
 @node fmc-fakedev
 @section fmc-fakedev
 
-This package includes a software-only device, called @t{fmc-fakedev}.
+This package includes a software-only device, called @t{fmc-fakedev},
+which is able to register up to 4 mezzanines (by default it registers one).
 Unlike the @sc{spec} driver, which creates an @sc{fmc} device for each
 PCI cards it manages, this module creates a single instance of its
-device.
+set of mezzanines.
 
 It is meant as the simplest possible example of how a driver should be
 written, and it includes a fake @sc{eeprom} image (built using the
-tools described in @ref{FMC Identification}).
+tools described in @ref{FMC Identification}), which by default is
+replicated for each fake mezzanine.
 
 You can also use this device to verify the match algorithms, by
 asking it to test your own @sc{eeprom} image. You can provide the image by
@@ -623,6 +625,25 @@ modify its own internal fake @sc{eeprom}: whenever the image is
 overwritten starting at offset 0, the module will unregister and
 register again the @sc{fmc} device. This is shown later, in
 section @ref{fmc-write-eeprom}.
+
+In order to register more than one mezzanine, you can use module parameters:
+
+@table @code
+
+@item ndev=<number>
+
+	Ask for a number of devices. By default it registers one
+        device or as many as @sc{eeprom} file names it receives.
+
+@item eeprom=<name>[,<name>]
+
+	Name of the @sc{eeprom} images to be faked in the mezzanine devices.
+        You can pass up to 4 comma-separated names; empty names or
+        trailing unspecified names will select the default built-in
+        @sc{eeprom} image.  If you specify more than one @sc{eeprom} name,
+        the module will automatically register more than one mezzanine.
+
+@end table
 
 @c ==========================================================================
 @node FMC Device Incompatibilities

@@ -13,12 +13,20 @@
 #include <linux/workqueue.h>
 #include <linux/fmc.h>
 
-static char *ff_eeprom;
-module_param_named(eeprom, ff_eeprom, charp, 0444);
+#define FF_EEPROM_SIZE		8192	/* The standard eeprom size */
+#define FF_MAX_MEZZANINES	4	/* Fakes a multi-mezzanine carrier */
+
+/* The user can pass up to 4 names of eeprom images to load */
+static char *ff_eeprom[FF_MAX_MEZZANINES];
+static int ff_nr_eeprom;
+module_param_array_named(eeprom, ff_eeprom, charp, &ff_nr_eeprom, 0444);
+
+/* The user can ask for a multi-mezzanine carrier, with the default eeprom */
+static int ff_nr_dev = 1;
+module_param_named(ndev, ff_nr_dev, int, 0444);
+
 
 /* Lazily, don't support the "standard" module parameters */
-
-#define FF_EEPROM_SIZE 8192
 
 /*
  * Eeprom built from these commands:
@@ -28,7 +36,8 @@ module_param_named(eeprom, ff_eeprom, charp, 0444);
 
 	gensdbfs . ../fake-eeprom.bin
 */
-static char ff_eeimg[FF_EEPROM_SIZE] = {
+static char ff_eeimg[FF_MAX_MEZZANINES][FF_EEPROM_SIZE] = {
+	{
 	0x01, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x00, 0xf2, 0x01, 0x0b, 0x00, 0xb2,
 	0x86, 0x87, 0xcb, 0x66, 0x61, 0x6b, 0x65, 0x2d, 0x76, 0x65, 0x6e, 0x64,
 	0x6f, 0x72, 0xd7, 0x66, 0x61, 0x6b, 0x65, 0x2d, 0x64, 0x65, 0x73, 0x69,
@@ -67,10 +76,11 @@ static char ff_eeimg[FF_EEPROM_SIZE] = {
 	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x49, 0x50, 0x4d, 0x49,
 	0x2d, 0x46, 0x52, 0x55, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 	0x20, 0x20, 0x20, 0x01, 0x66, 0x61, 0x6b, 0x65, 0x0a,
+	},
 };
 
 struct ff_dev {
-	struct fmc_device fmc;
+	struct fmc_device fmc[FF_MAX_MEZZANINES];
 	struct device dev;
 	struct delayed_work work;
 };
@@ -127,7 +137,7 @@ static void ff_work_fn(struct work_struct *work)
 	struct ff_dev *ff = container_of(dw, struct ff_dev, work);
 	int ret;
 
-	fmc_device_unregister(&ff->fmc);
+	fmc_device_unregister_n(ff->fmc, ff_nr_dev);
 	device_unregister(&ff->dev);
 	ff_current_dev = NULL;
 
@@ -136,7 +146,7 @@ static void ff_work_fn(struct work_struct *work)
 		pr_warning("%s: can't re-create FMC device\n", __func__);
 		return;
 	}
-	ret = fmc_device_register(&ff->fmc);
+	ret = fmc_device_register_n(ff->fmc, ff_nr_dev);
 	if (ret < 0) {
 		device_unregister(&ff->dev);
 		pr_warning("%s: can't re-register FMC device\n", __func__);
@@ -154,7 +164,7 @@ int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 		return -EINVAL;
 	if (offset + size > FF_EEPROM_SIZE)
 		size = FF_EEPROM_SIZE - offset;
-	memcpy(buf, ff_eeimg + offset, size);
+	memcpy(buf, fmc->eeprom + offset, size);
 	return size;
 }
 
@@ -168,7 +178,7 @@ int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 	if (offset + size > FF_EEPROM_SIZE)
 		size = FF_EEPROM_SIZE - offset;
 	pr_info("%s: size %zi\n", __func__, size);
-	memcpy(ff_eeimg + offset, buf, size);
+	memcpy(fmc->eeprom + offset, buf, size);
 	schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
 	return size;
 }
@@ -221,10 +231,7 @@ static struct fmc_device ff_template_fmc = {
 	.owner = THIS_MODULE,
 	.carrier_name = "fake",
 	.device_id = 0xf001, /* fool */
-	.eeprom = ff_eeimg,
-	.eeprom_addr = 0x50,
-	.eeprom_len = sizeof(ff_eeimg),
-	.nr_slots = 1,
+	.eeprom_len = sizeof(ff_eeimg[0]),
 	.memlen = 0x1000, /* 4k, to show something */
 	.op = &ff_fmc_operations,
 	.hwdev = NULL, /* filled at creation time */
@@ -234,7 +241,7 @@ static struct fmc_device ff_template_fmc = {
 static struct ff_dev *ff_dev_create(void)
 {
 	struct ff_dev *ff;
-	int ret;
+	int i, ret;
 
 	ff = kzalloc(sizeof(*ff), GFP_KERNEL);
 	if (!ff)
@@ -249,12 +256,19 @@ static struct ff_dev *ff_dev_create(void)
 		return ERR_PTR(ret);
 	}
 
-	/* Create an fmc structure that refers to this new "hw" device */
-	ff->fmc = ff_template_fmc;
-	ff->fmc.hwdev = &ff->dev;
-	ff->fmc.carrier_data = ff;
-	ff_template_fmc.device_id++; /* for next time */
-
+	/* Create fmc structures that refers to this new "hw" device */
+	for (i = 0; i < ff_nr_dev; i++) {
+		ff->fmc[i] = ff_template_fmc;
+		ff->fmc[i].hwdev = &ff->dev;
+		ff->fmc[i].carrier_data = ff;
+		ff->fmc[i].nr_slots = ff_nr_dev;
+		/* the following fields are different for each slot */
+		ff->fmc[i].eeprom = ff_eeimg[i];
+		ff->fmc[i].eeprom_addr = 0x50 + 2 * i;
+		ff->fmc[i].slot_id = i;
+		/* increment the identifier, each must be different */
+		ff_template_fmc.device_id++;
+	}
 	INIT_DELAYED_WORK(&ff->work, ff_work_fn);
 	return ff;
 }
@@ -264,27 +278,37 @@ int ff_init(void)
 {
 	struct ff_dev *ff;
 	const struct firmware *fw;
-	int len, ret = 0;
+	int i, len, ret = 0;
 
+	/* Replicate the default eeprom for the max number of mezzanines */
+	for (i = 1; i < FF_MAX_MEZZANINES; i++)
+		memcpy(ff_eeimg[i], ff_eeimg[0], sizeof(ff_eeimg[0]));
+
+	if (ff_nr_eeprom > ff_nr_dev)
+		ff_nr_dev = ff_nr_eeprom;
 
 	ff = ff_dev_create();
 	if (IS_ERR(ff))
 		return PTR_ERR(ff);
 
-	/* If the user passed "eeprom=" as a parameter, fetch it */
-	if (ff_eeprom) {
-		ret = request_firmware(&fw, ff_eeprom, &ff->dev);
+	/* If the user passed "eeprom=" as a parameter, fetch them */
+	for (i = 0;i < ff_nr_eeprom; i++) {
+		if (!strlen(ff_eeprom[i]))
+			continue;
+		ret = request_firmware(&fw, ff_eeprom[i], &ff->dev);
 		if (ret < 0) {
-			dev_err(&ff->dev, "Can't load \"%s\" (error %i)\n",
-				ff_eeprom, -ret);
+			dev_err(&ff->dev, "Mezzanine %i: can't load \"%s\" "
+				"(error %i)\n", i, ff_eeprom[i], -ret);
 		} else {
 			len = min_t(size_t, fw->size, (size_t)FF_EEPROM_SIZE);
-			memcpy(ff_eeimg, fw->data, len);
+			memcpy(ff_eeimg[i], fw->data, len);
 			release_firmware(fw);
+			dev_info(&ff->dev, "Mezzanine %i: eeprom \"%s\"\n", i,
+				ff_eeprom[i]);
 		}
 	}
 
-	ret = fmc_device_register(&ff->fmc);
+	ret = fmc_device_register_n(ff->fmc, ff_nr_dev);
 	if (ret) {
 		device_unregister(&ff->dev);
 		return ret;
@@ -297,7 +321,7 @@ void ff_exit(void)
 {
 	if (ff_current_dev) {
 		cancel_delayed_work_sync(&ff_current_dev->work);
-		fmc_device_unregister(&ff_current_dev->fmc);
+		fmc_device_unregister_n(ff_current_dev->fmc, ff_nr_dev);
 		device_unregister(&ff_current_dev->dev);
 	}
 }
