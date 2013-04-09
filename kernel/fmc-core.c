@@ -70,12 +70,6 @@ static struct bus_type fmc_bus_type = {
 /* We really have nothing to release in here */
 static void __fmc_release(struct device *dev) { }
 
-/* This is needed as parent for our devices and dir in sysfs */
-struct device fmc_bus = {
-	.release = __fmc_release,
-	.init_name = "fmc",
-};
-
 /*
  * Functions for client modules follow
  */
@@ -153,7 +147,7 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 		if (!fmc->dev.release)
 			fmc->dev.release = __fmc_release;
 		if (!fmc->dev.parent)
-			fmc->dev.parent = &fmc_bus;
+			fmc->dev.parent = fmc->hwdev;
 
 		/* Fill the identification stuff (may fail) */
 		fmc_fill_id_info(fmc);
@@ -228,23 +222,12 @@ EXPORT_SYMBOL(fmc_device_unregister);
 /* Init and exit are trivial */
 static int fmc_init(void)
 {
-	int err;
-
-	err = device_register(&fmc_bus);
-	if (err) {
-		put_device(&fmc_bus);
-		return err;
-	}
-	err = bus_register(&fmc_bus_type);
-	if (err)
-		device_unregister(&fmc_bus);
-	return err;
+	return bus_register(&fmc_bus_type);
 }
 
 static void fmc_exit(void)
 {
 	bus_unregister(&fmc_bus_type);
-	device_unregister(&fmc_bus);
 }
 
 module_init(fmc_init);
