@@ -82,7 +82,6 @@ static char ff_eeimg[FF_MAX_MEZZANINES][FF_EEPROM_SIZE] = {
 struct ff_dev {
 	struct fmc_device *fmc[FF_MAX_MEZZANINES];
 	struct device dev;
-	struct delayed_work work;
 };
 
 static struct ff_dev *ff_current_dev; /* We have 1 carrier, 1 slot */
@@ -125,16 +124,14 @@ static int ff_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 
 
 /*
- * This work function is called when we changed the eeprom. It removes
- * the current fmc device and registers a new one, probably with different
- * identifiers.
+ * This work function is called when we changed the eeprom. It removes the
+ * current fmc device and registers a new one, with different identifiers.
  */
 static struct ff_dev *ff_dev_create(void); /* defined later */
 
 static void ff_work_fn(struct work_struct *work)
 {
-	struct delayed_work *dw = to_delayed_work(work);
-	struct ff_dev *ff = container_of(dw, struct ff_dev, work);
+	struct ff_dev *ff = ff_current_dev;
 	int ret;
 
 	fmc_device_unregister_n(ff->fmc, ff_nr_dev);
@@ -156,6 +153,9 @@ static void ff_work_fn(struct work_struct *work)
 	ff_current_dev = ff;
 }
 
+static DECLARE_DELAYED_WORK(ff_work, ff_work_fn);
+
+
 /* low-level i2c */
 int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 		void *buf, size_t size)
@@ -171,8 +171,6 @@ int ff_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		    const void *buf, size_t size)
 {
-	struct ff_dev *ff = fmc->carrier_data;
-
 	if (offset > FF_EEPROM_SIZE)
 		return -EINVAL;
 	if (offset + size > FF_EEPROM_SIZE)
@@ -180,7 +178,7 @@ int ff_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 	dev_info(&fmc->dev, "write_eeprom: offset %i, size %zi\n",
 		 (int)offset, size);
 	memcpy(fmc->eeprom + offset, buf, size);
-	schedule_delayed_work(&ff->work, HZ * 2); /* remove, replug, in 2s */
+	schedule_delayed_work(&ff_work, HZ * 2); /* remove, replug, in 2s */
 	return size;
 }
 
@@ -288,7 +286,6 @@ static struct ff_dev *ff_dev_create(void)
 		/* increment the identifier, each must be different */
 		ff_template_fmc.device_id++;
 	}
-	INIT_DELAYED_WORK(&ff->work, ff_work_fn);
 	return ff;
 }
 
@@ -339,10 +336,10 @@ int ff_init(void)
 void ff_exit(void)
 {
 	if (ff_current_dev) {
-		cancel_delayed_work_sync(&ff_current_dev->work);
 		fmc_device_unregister_n(ff_current_dev->fmc, ff_nr_dev);
 		device_unregister(&ff_current_dev->dev);
 	}
+	cancel_delayed_work_sync(&ff_work);
 }
 
 module_init(ff_init);
