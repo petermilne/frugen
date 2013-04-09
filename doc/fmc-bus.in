@@ -1672,10 +1672,25 @@ spusa.root# insmod fmc-write-eeprom.ko busid=0x0200 file=fdelay-eeprom.bin
 [14126.392600] fmc_write_eeprom: probe of fmc-0001 failed with error -2
 @end smallexample
 
+@c ==========================================================================
+@node Reading back the EEPROM
+@section Reading back the EEPROM
+
+In order to read back the binary content of the @sc{eeprom} of your
+mezzanine device, the bus creates a read-only @i{sysfs} file called
+@t{eeprom} for each mezzanine it knows about:
+
+@smallexample
+   spusa.root# cd /sys/bus/fmc/devices; ls -l */eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 16:53 FmcDelay1ns4cha-f001/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f002/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fake-design-for-testing-f003/eeprom
+   -r--r--r-- 1 root root 8192 Apr  9 17:19 fmc-f004/eeprom
+@end smallexample
 
 @c ==========================================================================
-@node How Identification Works at Run Time
-@section How Identification Works at Run Time
+@c @node How Identification Works at Run Time
+@c @section How Identification Works at Run Time
 
 @c ##########################################################################
 @node SDB Support
