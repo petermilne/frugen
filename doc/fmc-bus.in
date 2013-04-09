@@ -161,8 +161,8 @@ to work, and a few more:
    int fmc_device_register(struct fmc_device *fmc);
    void fmc_device_unregister(struct fmc_device *fmc);
 
-   int fmc_device_register_n(struct fmc_device *fmc, int n);
-   void fmc_device_unregister_n(struct fmc_device *fmc, int n);
+   int fmc_device_register_n(struct fmc_device **fmc, int n);
+   void fmc_device_unregister_n(struct fmc_device **fmc, int n);
 
    uint32_t fmc_readl(struct fmc_device *fmc, int offset);
    void fmc_writel(struct fmc_device *fmc, uint32_t val, int off);
@@ -175,11 +175,14 @@ to work, and a few more:
 
 The data structure that describe a device is detailed in @ref{FMC
 Device}, the one that describes a driver is detailed in @ref{FMC
-Driver}.
+Driver}.  Please note that structures of type @t{fmc_device} must
+be allocated by the caller, but must not be released after unregistering.
+The @i{fmc-bus} itself takes care of releasing the structure when their
+use count reaches zero -- actually, the device model does that in lieu of us.
 
 The functions to register and unregister @i{n} devices are meant to be
 used by carriers that host more than one mezzanine. The devices must
-be all registered at the same time because if the @sc{fpga} is
+all be registered at the same time because if the @sc{fpga} is
 reprogrammed, all devices in the array are affected. Usually, the
 driver matching the first device will reprogram the @sc{fpga}, so
 other devices must know they are already driven by a reprogrammed
@@ -652,41 +655,23 @@ In order to register more than one mezzanine, you can use module parameters:
 @node FMC Device Incompatibilities
 @section FMC Device Incompatibilities
 
-If you started using this @i{fmc-bus} machinery some time ago, you may
-want to know what changed when the system has gained IPMI-FRU support.
-If you are a new user, you can ignore this section.
+During development, we had to introduce a few incompatibilities in the
+data structures. By using the field named @i{version} inside
+@t{fmc_device} you should be notified about such changes. Please use
+@t{git blame} for the details -- the version is always updated in the
+same commit that makes the change (for example commit 14a7b580 introduced
+version 3, changed the data structures and documentation at the same time).
+See @ref{FMC Device} for the current list of fields.
 
-@table @code
+The other incompatible change we had to introduce is in the allocation
+policy for @t{fmc_device} structures.  The devices must be allocated
+one at a time (with @i{kmalloc}) and never released.  Releasing
+happens by means of the @i{release} method of the device, when its
+use count drops to zero.
 
-@item version
-
-	The version number changed from 1 to 2, to prevent errors in those
-        few users that (like me) don't run CONFIG_MODVERSIONS. Actually,
-        no change is needed in driver source code.
-
-@item owner
-
-	The field is a new entry, and should be set to @code{THIS_MODULE}.
-	The new ``generic'' driver, meant to finally obsolete the
-        @i{gnurabbit} project, needs to pin a device while using it.
-
-@item memlen
-
-	In order to export a char device, we need to know the memory size,
-        so the device must tell how big it is (e.g., for the @sc{spec} it
-        is 1MB).
-
-@item device_id
-
-	This is a new entry: earlier, some @sc{fmc} drivers had to
-        look at the PCI carrier-specific structures to build identifiers.
-        This should now be filled by the device before registering (if
-        missing, the core will use sequential numbers).
-
-@end table
-
-Other fields are new, but they are filled by the core and don't require
-changes in driver modules.
+As a side effect, @t{fmc_device_register_n} must be passed an array
+of pointers, not an array of devices. Since each device is freed
+separately when not in use any more.
 
 @c ##########################################################################
 @node FMC Driver

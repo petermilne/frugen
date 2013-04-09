@@ -80,7 +80,7 @@ static char ff_eeimg[FF_MAX_MEZZANINES][FF_EEPROM_SIZE] = {
 };
 
 struct ff_dev {
-	struct fmc_device fmc[FF_MAX_MEZZANINES];
+	struct fmc_device *fmc[FF_MAX_MEZZANINES];
 	struct device dev;
 	struct delayed_work work;
 };
@@ -143,13 +143,13 @@ static void ff_work_fn(struct work_struct *work)
 
 	ff = ff_dev_create();
 	if (IS_ERR(ff)) {
-		pr_warning("%s: can't re-create FMC device\n", __func__);
+		pr_warning("%s: can't re-create FMC devices\n", __func__);
 		return;
 	}
 	ret = fmc_device_register_n(ff->fmc, ff_nr_dev);
 	if (ret < 0) {
+		dev_warn(&ff->dev, "can't re-register FMC devices\n");
 		device_unregister(&ff->dev);
-		pr_warning("%s: can't re-register FMC device\n", __func__);
 		return;
 	}
 
@@ -258,6 +258,7 @@ static struct fmc_device ff_template_fmc = {
 static struct ff_dev *ff_dev_create(void)
 {
 	struct ff_dev *ff;
+	struct fmc_device *fmc;
 	int i, ret;
 
 	ff = kzalloc(sizeof(*ff), GFP_KERNEL);
@@ -269,20 +270,21 @@ static struct ff_dev *ff_dev_create(void)
 	ret = device_register(&ff->dev);
 	if (ret < 0) {
 		put_device(&ff->dev);
-		kfree(ff);
 		return ERR_PTR(ret);
 	}
 
-	/* Create fmc structures that refers to this new "hw" device */
+	/* Create fmc structures that refer to this new "hw" device */
 	for (i = 0; i < ff_nr_dev; i++) {
-		ff->fmc[i] = ff_template_fmc;
-		ff->fmc[i].hwdev = &ff->dev;
-		ff->fmc[i].carrier_data = ff;
-		ff->fmc[i].nr_slots = ff_nr_dev;
+		fmc = kmemdup(&ff_template_fmc, sizeof(ff_template_fmc),
+			      GFP_KERNEL);
+		fmc->hwdev = &ff->dev;
+		fmc->carrier_data = ff;
+		fmc->nr_slots = ff_nr_dev;
 		/* the following fields are different for each slot */
-		ff->fmc[i].eeprom = ff_eeimg[i];
-		ff->fmc[i].eeprom_addr = 0x50 + 2 * i;
-		ff->fmc[i].slot_id = i;
+		fmc->eeprom = ff_eeimg[i];
+		fmc->eeprom_addr = 0x50 + 2 * i;
+		fmc->slot_id = i;
+		ff->fmc[i] = fmc;
 		/* increment the identifier, each must be different */
 		ff_template_fmc.device_id++;
 	}

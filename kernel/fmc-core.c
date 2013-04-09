@@ -67,8 +67,12 @@ static struct bus_type fmc_bus_type = {
 	.shutdown = fmc_shutdown,
 };
 
-/* We really have nothing to release in here */
-static void __fmc_release(struct device *dev) { }
+static void fmc_release(struct device *dev)
+{
+	struct fmc_device *fmc = container_of(dev, struct fmc_device, dev);
+
+	kfree(fmc);
+}
 
 /*
  * Functions for client modules follow
@@ -93,22 +97,26 @@ EXPORT_SYMBOL(fmc_driver_unregister);
  * When a device set is registered, all eeproms must be read
  * and all FRUs must be parsed
  */
-int fmc_device_register_n(struct fmc_device *fmcs, int n)
+int fmc_device_register_n(struct fmc_device **devs, int n)
 {
 	struct fmc_device *fmc, **devarray;
 	uint32_t device_id;
 	int i, ret = 0;
 
+	if (n < 1)
+		return 0;
+
 	/* Check the version of the first data structure (function prints) */
-	if (fmc_check_version(fmcs->version, fmcs->carrier_name))
+	if (fmc_check_version(devs[0]->version, devs[0]->carrier_name))
 		return -EINVAL;
 
-	devarray = kmalloc(n * sizeof(*devarray), GFP_KERNEL);
+	devarray = kmemdup(devs, n * sizeof(*devs), GFP_KERNEL);
 	if (!devarray)
 		return -ENOMEM;
 
 	/* Make all other checks before continuing, for all devices */
-	for (i = 0, fmc = fmcs; i < n; i++, fmc++) {
+	for (i = 0; i < n; i++) {
+		fmc = devarray[i];
 		if (!fmc->hwdev) {
 			pr_err("%s: device has no hwdev pointer\n", __func__);
 			return -EINVAL;
@@ -130,8 +138,6 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 		if (ret)
 			break;
 
-		fmc->nr_slots = n; /* each slot must know how many are there */
-		devarray[i] = fmc;
 	}
 	if (ret) {
 		kfree(devarray);
@@ -139,15 +145,14 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 	}
 
 	/* Validation is ok. Now init and register the devices */
-	for (i = 0, fmc = fmcs; i < n; i++, fmc++) {
-
+	for (i = 0; i < n; i++) {
+		fmc = devarray[i];
+		fmc->nr_slots = n; /* each slot must know how many are there */
 		fmc->devarray = devarray;
 
 		device_initialize(&fmc->dev);
-		if (!fmc->dev.release)
-			fmc->dev.release = __fmc_release;
-		if (!fmc->dev.parent)
-			fmc->dev.parent = fmc->hwdev;
+		fmc->dev.release = fmc_release;
+		fmc->dev.parent = fmc->hwdev;
 
 		/* Fill the identification stuff (may fail) */
 		fmc_fill_id_info(fmc);
@@ -166,6 +171,7 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 			dev_err(fmc->hwdev, "Failed in registering \"%s\"\n",
 				fmc->dev.kobj.name);
 			fmc_free_id_info(fmc);
+			put_device(&fmc->dev);
 			goto out;
 		}
 		/* This device went well, give information to the user */
@@ -175,14 +181,12 @@ int fmc_device_register_n(struct fmc_device *fmcs, int n)
 	return 0;
 
 out:
-	for (i--, fmc--; i >= 0; i--, fmc--) {
-		device_del(&fmc->dev);
-		fmc_free_id_info(fmc);
-		put_device(&fmc->dev);
+	kfree(devarray);
+	for (i--; i >= 0; i--) {
+		device_del(&devs[i]->dev);
+		fmc_free_id_info(devs[i]);
+		put_device(&devs[i]->dev);
 	}
-	kfree(fmcs->devarray);
-	for (i = 0, fmc = fmcs; i < n; i++, fmc++)
-		fmc->devarray = NULL;
 	return ret;
 
 }
@@ -190,32 +194,31 @@ EXPORT_SYMBOL(fmc_device_register_n);
 
 int fmc_device_register(struct fmc_device *fmc)
 {
-	return fmc_device_register_n(fmc, 1);
+	return fmc_device_register_n(&fmc, 1);
 }
 EXPORT_SYMBOL(fmc_device_register);
 
-void fmc_device_unregister_n(struct fmc_device *fmcs, int n)
+void fmc_device_unregister_n(struct fmc_device **devs, int n)
 {
-	struct fmc_device *fmc;
 	int i;
 
-	for (i = 0, fmc = fmcs; i < n; i++, fmc++) {
-		device_del(&fmc->dev);
-		fmc_free_id_info(fmc);
-		put_device(&fmc->dev);
-	}
-	/* Then, free the locally-allocated stuff */
-	for (i = 0, fmc = fmcs; i < n; i++, fmc++) {
-		if (i == 0)
-			kfree(fmc->devarray);
-		fmc->devarray = NULL;
+	if (n < 1)
+		return;
+
+	/* Free devarray first, not used by the later loop */
+	kfree(devs[0]->devarray);
+
+	for (i = 0; i < n; i++) {
+		device_del(&devs[i]->dev);
+		fmc_free_id_info(devs[i]);
+		put_device(&devs[i]->dev);
 	}
 }
 EXPORT_SYMBOL(fmc_device_unregister_n);
 
 void fmc_device_unregister(struct fmc_device *fmc)
 {
-	fmc_device_unregister_n(fmc, 1);
+	fmc_device_unregister_n(&fmc, 1);
 }
 EXPORT_SYMBOL(fmc_device_unregister);
 
