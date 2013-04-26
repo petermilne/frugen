@@ -1722,7 +1722,7 @@ To be completed.
 
 This package should be portable. However I didn't test it on a wide
 variety of system.  I used it on a 32-bit x86 host, running version 2.6.32
-and 3.4 of the kernel.
+and 3.8 of the kernel.
 
 I verified that it compiles without any warning from version 2.6.35 up
 to 3.5, on a 32-bit x86 processor. From 2.6.27 to 2.6.34 the only warning
