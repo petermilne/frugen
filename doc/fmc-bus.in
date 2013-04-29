@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month January 2013
+@set update-month April 2013
 
 @finalout
 
@@ -1460,7 +1460,7 @@ standard is awful and difficult without reason, so we only support the
 minimum mandatory subset -- we create a simple structure and parse it
 back at run time, but we are not able to either generate or parse more
 arcane features like non-english languages and 6-bit text.  If you
-need more items of the FRU standard for you boards, please submit
+need more items of the FRU standard for your boards, please submit
 patches.
 
 This package includes the Python script that Matthieu Cattin wrote to
@@ -1722,7 +1722,7 @@ To be completed.
 
 This package should be portable. However I didn't test it on a wide
 variety of system.  I used it on a 32-bit x86 host, running version 2.6.32
-and 3.4 of the kernel.
+and 3.8 of the kernel.
 
 I verified that it compiles without any warning from version 2.6.35 up
 to 3.5, on a 32-bit x86 processor. From 2.6.27 to 2.6.34 the only warning
