@@ -32,10 +32,14 @@ int fmc_match(struct device *dev, struct device_driver *drv)
 		dev_warn(&fdev->dev, "Driver has no ID: matches all\n");
 		matched = 1;
 	} else {
+		if (!fdev->id.manufacturer || !fdev->id.product_name)
+			return 0; /* the device has no FRU information */
 		for (i = 0; i < fdrv->id_table.fru_id_nr; i++, fid++) {
-			if (strcmp(fid->manufacturer, fdev->id.manufacturer))
+			if (fid->manufacturer &&
+			    strcmp(fid->manufacturer, fdev->id.manufacturer))
 				continue;
-			if (strcmp(fid->product_name, fdev->id.product_name))
+			if (fid->product_name &&
+			    strcmp(fid->product_name, fdev->id.product_name))
 				continue;
 			matched = 1;
 			break;
