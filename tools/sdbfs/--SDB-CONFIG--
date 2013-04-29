@@ -12,8 +12,8 @@
 # The IPMI-FRU material is in the "IPMI-FRU" file. It has been
 # generated using ../fru-generator like this:
 #
-# ../fru-generator -v CERN -n FmcDelay1ns4cha -s proto-0 \
-#   -p EDA-02267-V3 > IPMI-FRU
+# ../fru-generator -v "INCAA Computers BV" -n FmcDelay1ns4cha -s 123_123 \
+#   -p EDA-02267-V5-2 > IPMI-FRU
 
 IPMI-FRU
 	position = 0
@@ -21,8 +21,17 @@ IPMI-FRU
 # we have a "name" file, that includes "fdelay". But no configuration is
 # needed.
 
-# Finally, the fine-delay wants configuration at offset 0x1800, because
-# SDB was added to the drivers later, and initially a known address was
+# We also have a "calibration" file, that new fdelay drivers look for in the
+# sdb structures. So there is no configuration for this item in here.
+
+
+# What follows is no longer current, but I keep it for explanatory
+# purposes.  This is something you can use if your driver doesn't rely
+# on SDB to find the data but you still want to use it to generate the
+# data.
+#
+# Older fdelay drivers wanted configuration at offset 0x1800, because
+# SDB was not supported, and initially a known address was
 # used. So prepare a writable file in there. The driver looks for "fd-c".
 # The size of calibration information is around 100 bytes.
 
