@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month April 2013
+@set update-month May 2013
 
 @finalout
 
@@ -1721,17 +1721,16 @@ To be completed.
 @chapter Portability
 
 This package should be portable. However I didn't test it on a wide
-variety of system.  I used it on a 32-bit x86 host, running version 2.6.32
-and 3.8 of the kernel.
+variety of system.  I used it on a 32-bit x86 host, running version
+3.4 of the kernel.
 
 I verified that it compiles without any warning from version 2.6.35 up
-to 3.5, on a 32-bit x86 processor. From 2.6.27 to 2.6.34 the only warning
-is about the @t{eeprom} read-only file in @i{sysfs}. Please don't access
-that file when running 2.6.34 or earlier.
-
-On 2.6.26 it fails for changes in
-the Linux device structures. On 2.6.25 and earlier it fails much more
-badly. We still support 2.6.24 with a separate @i{backport} branch.
+to 3.9, on a 32-bit x86 processor. On previous versions it fails for
+various reasons, but the backport branch we push for every release
+fixes them. The backport branch builds without warnings or error
+for 2.6.24 and 2.6.26 up to 2.6.29 (we don't care fixing it for 2.6.25).
+I don't test kernels older than 2.6.24 as that one is the olderst release
+we are using in production at the time being.
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
