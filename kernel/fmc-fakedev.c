@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/workqueue.h>
+#include <linux/err.h>
 #include <linux/fmc.h>
 
 #define FF_EEPROM_SIZE		8192	/* The standard eeprom size */
