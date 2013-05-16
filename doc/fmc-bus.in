@@ -1446,8 +1446,7 @@ package and @sc{sdb} (part of the @i{fpga-config-space} package).
 
 The first sections are only interesting for manufacturers who need to
 write the @sc{eeprom}. If you are just a software developer writing an
-@sc{fmc} device or driver, you may jump straight to @ref{How
-Identification Works at Run Time}.
+@sc{fmc} device or driver, you may jump straight to @ref{SDB Support}.
 
 @c ==========================================================================
 @node Building the FRU Structure
