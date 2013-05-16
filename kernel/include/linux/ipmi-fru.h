@@ -103,7 +103,7 @@ static inline char *fru_strcpy(char *dest, struct fru_type_length *tl)
 {
 	int len = fru_strlen(tl);
 	memcpy(dest, tl->data, len);
-	dest[len + 1] = '\0';
+	dest[len] = '\0';
 	return dest;
 }
 
