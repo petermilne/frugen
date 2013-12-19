@@ -4,6 +4,8 @@
 # Copyright CERN, 2011, 2012
 # Author: Matthieu Cattin <matthieu.cattin@cern.ch>
 # Modified and broken by Alessandro Rubini, still learning python
+# Copyright D-TACQ Solutions, 2013
+# Modfied for D-TACQ purposes by Peter Milne peter.milne@d-tacq.com, still learning python.
 
 # Import system modules
 import sys
@@ -25,7 +27,7 @@ Creates a FRU binary file to be written into FMC EEPROM
 
 
 def fru_getopt(argv):
-    return getopt.getopt(argv,"v:n:s:p:",["help", "nchan", "mtype"])
+    return getopt.getopt(argv,"v:n:s:p:",["help", "nchan=", "mtype="])
 
 def help():
     print("frugen [opts] PART SN1 .. [SNn]")
@@ -37,19 +39,26 @@ def help():
 
 
 class FruGenerator:
-    def __init__(self, name, argv):
+    def __init__(self, name, part):
         # Defaults
         self.FRU_VENDOR = "D-TACQ Solutions"
         self.FRU_NAME = name
         self.FRU_SERIAL = "0001"
-        self.FRU_PART = argv[0] 
-        self.outroot = "fru/"
+        self.FRU_PART = part 
+        self.outroot = "fru"
+        self.FMT = "X4xxx%04d"
         self.nchan = 0
         self.mtype = 0
         self.verbose = 0        
         
 
-    def main (self, argv):
+    def set_NchanMtypeFmt(self, nchan, mtype, fmt):
+        self.nchan = nchan
+        self.mtype = mtype
+        self.FMT = fmt
+        
+        
+    def setOpts(self, argv):
         # Override defaults with environment variables
         try:
             self.FRU_VENDOR = os.environ['FRU_VENDOR']
@@ -121,7 +130,8 @@ class FruGenerator:
         # max TCK freq : frequency in MHz
         self.oem = OEMRecord(0, 0, 3, 0, 24, 0, 0, 0, 0, 0, 0)
 
-    def write(self, fn):
+    def write(self, uut):
+        self.FRU_SERIAL = self.FMT % (int(uut))
         #==================================================
                 # Calculate number of minutes since 0:00 1/1/96
         now_date = datetime.datetime.now()
@@ -148,19 +158,18 @@ class FruGenerator:
 
         #==================================================
         # Write eeprom content to a binary file
-        ipmi_open_file("%s/%s" % (self.outroot, fn))
-        #ipmi_set(bia, dcload, dcout, oem, iua)
+        file = "%s/%s.fru" % (self.outroot, self.FRU_SERIAL)
+        print "Generating %s %s" % (self.FRU_NAME, file)
+        ipmi_open_file(file)        
         ipmi_set(self.bia, self.dcload, self.dcout, self.oem)
-
-
         ipmi_write()
         ipmi_close_file()
 
 
 # generates a FRU with zero rails requirement
 class FruGeneratorElf(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)        
+    def __init__(self, name, part):
+        FruGenerator.__init__(self, name, part)        
         dcload0 = DCLoadRecord(0, 0.0, 0.0, 0.0, 0.0, 0, 0) # VADJ
         dcload1 = DCLoadRecord(1, 0.0, 0.0, 0.0, 0.0, 0, 0) # P3V3
         dcload2 = DCLoadRecord(2, 0.0, 0.0, 0.0, 0.0, 0, 0)  # P12V
@@ -180,8 +189,8 @@ class FruGeneratorElf(FruGenerator):
 
 
 class FruGeneratorFmc(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)    
+    def __init__(self, name, part):
+        FruGenerator.__init__(self, name, part)    
         # possible general common FMC things here.
 
 
@@ -189,70 +198,62 @@ class FruGeneratorFmc(FruGenerator):
 # put product specific defaults, [nchan, mtype but also dcloadX when ready]
 
 
-class ACQ420FMC(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "01"
-        main(self, argv)
-
+class ACQ420FMC(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        self.set_NchanMtypeFmt(5, "01", "E4201%04d")
 
 class ACQ420ELF(FruGeneratorElf):
-    def __init__(self, name, argv):
-        FruGeneratorElf.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "01"
-        main(self, argv)
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self, 4, "01", "F4201%04d")
         
 class ACQ425ELF(FruGeneratorElf):
-    def __init__(self, name, argv):
-        FruGeneratorElf.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "05"
-        main(self, argv)        
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self, 16, "05", "E4251%04d")        
 
-class ACQ430FMC(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)
-        self.nchan = 8
-        self.mtype = "03"
-        main(self, argv)
-
+class ACQ430FMC(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  8, "03", "F4301%04d")         
 
 class ACQ430ELF(FruGeneratorElf):
-    def __init__(self, name, argv):
-        FruGeneratorElf.__init__(self, name, argv)
-        self.nchan = 8
-        self.mtype = "03"
-        FruGenerator.main(self, argv)
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  8, "03", "E4301%04d")   
 
 class ACQ435ELF(FruGeneratorElf):
-    def __init__(self, name, argv):
-        FruGeneratorElf.__init__(self, name, argv)
-        self.nchan = 32
-        self.mtype = "02"
-        main(self, argv)
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self, 32, "02", "E4351%04d")        
+        
 
-class ACQ440FMC(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "04"
-        main(self, argv)
+class ACQ440FMC(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  4, "04", "F4401%04d")
+        
 
-class AO420FMC(FruGenerator):
-    def __init__(self, name, argv):
-        FruGenerator.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "40"
-        main(self, argv)
+class AO420FMC(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  4, "40", "F4200%04d")
+        
 
-class AO420ELF(FruGenerator):
-    def __init__(self, name, argv):
-        FruGeneratorElf.__init__(self, name, argv)
-        self.nchan = 4
-        self.mtype = "40"
-        main(self, argv)
+class AO420ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  4, "40", "E4200%04d")        
+        
+        
+class AO421ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        set_NchanMtypeFmt(self,  40, "ff", "E4210%04d")
+        
+                
+   
    
 fundict = {
     'ACQ420FMC' : ACQ420FMC,
@@ -265,6 +266,7 @@ fundict = {
     'AO420FMC'  : AO420FMC,
     'AO420ELF'  : AO420ELF,
 }  
+
 if __name__ == '__main__' :
 
     try:
@@ -286,19 +288,16 @@ if __name__ == '__main__' :
         print("frugen: must specify part")
         sys.exit(1)
     
-
     try:    
-        fg = fundict[btype](btype, sys.argv[1:])
+        fg = fundict[btype](btype, args[0])
     except KeyError:
         print "ERROR: product type %s not found" % (btype)
         print "available products are:"
         for key in fundict.keys():
             print key 
-        sys.exit(1)
-        
-
-            
+        sys.exit(1)            
     
-    for uut in args[1:]:
-        fg.FRU_SERIAL = uut
+    fg.setOpts(sys.argv[1:])    
+    
+    for uut in args[1:]:        
         fg.write(uut)
