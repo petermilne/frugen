@@ -1,0 +1,304 @@
+#!   /usr/bin/env   python
+#-*-python-*-
+
+# Copyright CERN, 2011, 2012
+# Author: Matthieu Cattin <matthieu.cattin@cern.ch>
+# Modified and broken by Alessandro Rubini, still learning python
+
+# Import system modules
+import sys
+import getopt
+import time
+import datetime
+import os
+
+from libipmi.fmc_eeprom import *
+
+
+
+
+"""
+Creates a FRU binary file to be written into FMC EEPROM
+
+"""
+
+
+
+def fru_getopt(argv):
+    return getopt.getopt(argv,"v:n:s:p:",["help", "nchan", "mtype"])
+
+def help():
+    print("frugen [opts] PART SN1 .. [SNn]")
+    print("generate SN1 .. SNn FRU files each of type PART")
+    print("VALID PARTS ACQ420FMC- etc")
+    print("opts: ")
+    print("    --nchan NCHAN .. nchannels override")
+    print("    --mtype MTYPE .. mtype override")
+
+
+class FruGenerator:
+    def __init__(self, name, argv):
+        # Defaults
+        self.FRU_VENDOR = "D-TACQ Solutions"
+        self.FRU_NAME = name
+        self.FRU_SERIAL = "0001"
+        self.FRU_PART = argv[0] 
+        self.outroot = "fru/"
+        self.nchan = 0
+        self.mtype = 0
+        self.verbose = 0        
+        
+
+    def main (self, argv):
+        # Override defaults with environment variables
+        try:
+            self.FRU_VENDOR = os.environ['FRU_VENDOR']
+        except:
+            pass
+        try:
+            self.FRU_NAME = os.environ['FRU_NAME']
+        except:
+            pass
+        try:
+            self.FRU_SERIAL = os.environ['FRU_SERIAL']
+        except:
+            pass
+        try:
+            self.FRU_PART = os.environ['FRU_PART']
+        except:
+            pass        
+        if os.getenv("FRU_VERBOSE") is not None:
+            self.verbose = 1
+
+        # Override defaults with command line arguments
+        try:
+            opts, args = fru_getopt(argv)
+        except getopt.GetoptError:
+            print "fru-generator: wrong arguments"
+            sys.exit(2)
+        for opt, arg in opts:
+            if opt == "--help":
+                print "fru-generator: no help yet"
+                sys.exit(1)
+            if opt == '-v':
+                self.FRU_VENDOR = arg
+            if opt == '-n':
+                self.FRU_NAME = arg
+            if opt == '-s':
+                self.FRU_SERIAL = arg
+            if opt == '-p':
+                self.FRU_PART = arg           
+            if opt == "--nchan":
+                self.nchan = arg
+            if opt == "--mtype":
+                self.mtype = arg
+
+        #==================================================
+        # Multirecords Area
+
+        # output number, vnom, vmin, vmax, ripple, imin, imax
+        dcload0 = DCLoadRecord(0, 1.8, 1.7, 1.9, 0.0, 0, 150) # VADJ
+        dcload1 = DCLoadRecord(1, 3.3, 3.135, 3.465, 0.0, 0, 120) # P3V3
+        dcload2 = DCLoadRecord(2, 12.0, 11.4, 12.6, 0.0, 0, 50)  # P12V
+        self.dcload = [ dcload0, dcload1, dcload2 ]
+
+        # output number, vnom, vmin, vmax, ripple, imin, imax
+        dcout0 = DCOutputRecord(3, 0.0, 0.0, 0.0, 0.0, 0, 0) # VIO_B_M2C
+        dcout1 = DCOutputRecord(4, 0.0, 0.0, 0.0, 0.0, 0, 0) # VREF_A_M2C
+        dcout2 = DCOutputRecord(5, 0.0, 0.0, 0.0, 0.0, 0, 0) # VREF_B_M2C
+        self.dcout = [ dcout0, dcout1, dcout2 ]
+
+        # module size  : 0=single width, 1=double width
+        # P1 size      : 0=LPC, 1=HPC
+        # P2 size      : 0=LPC, 1=HPC, 3=not fitted
+        # clock dir    : 0=M2C, 1=C2M
+        # nb sig P1 A  : number
+        # nb sig P1 B  : number
+        # nb sig P2 A  : number
+        # nb sig P2 B  : number
+        # nb GBT P1    : number
+        # nb GBT P2    : number
+        # max TCK freq : frequency in MHz
+        self.oem = OEMRecord(0, 0, 3, 0, 24, 0, 0, 0, 0, 0, 0)
+
+    def write(self, fn):
+        #==================================================
+                # Calculate number of minutes since 0:00 1/1/96
+        now_date = datetime.datetime.now()
+        ref_date = datetime.datetime(1996, 1, 1)
+        diff_date = now_date - ref_date
+        total_seconds = diff_date.days * 86400 + diff_date.seconds
+        current_date = int(total_seconds//60)
+        mfg_date = current_date        
+        #==================================================
+        # Create Board Info Area
+        # FRU field is used to store the date of generation of the eeprom content
+        # This could be used later to determine if the content has to be udated (bug fix, ...)
+        fru_part = "%s N=%s M=%s" % (self.FRU_PART, self.nchan, self.mtype)
+
+        if self.verbose:
+            print "VENDOR = " + self.FRU_VENDOR
+            print "NAME = " + self.FRU_NAME
+            print "SERIAL = " + self.FRU_SERIAL
+            print "PART = " + self.FRU_PART
+            print "OUTPUT = " + self.FRU_OUTPUT        
+        fru = "%s" % now_date
+        self.bia = BoardInfoArea(mfg_date, self.FRU_VENDOR, self.FRU_NAME, \
+                                 self.FRU_SERIAL, fru_part, fru)
+
+        #==================================================
+        # Write eeprom content to a binary file
+        ipmi_open_file("%s/%s" % (self.outroot, fn))
+        #ipmi_set(bia, dcload, dcout, oem, iua)
+        ipmi_set(self.bia, self.dcload, self.dcout, self.oem)
+
+
+        ipmi_write()
+        ipmi_close_file()
+
+
+# generates a FRU with zero rails requirement
+class FruGeneratorElf(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)        
+        dcload0 = DCLoadRecord(0, 0.0, 0.0, 0.0, 0.0, 0, 0) # VADJ
+        dcload1 = DCLoadRecord(1, 0.0, 0.0, 0.0, 0.0, 0, 0) # P3V3
+        dcload2 = DCLoadRecord(2, 0.0, 0.0, 0.0, 0.0, 0, 0)  # P12V
+        self.dcload = [dcload0, dcload1, dcload2] 
+        # module size  : 0=single width, 1=double width
+        # P1 size      : 0=LPC, 1=HPC
+        # P2 size      : 0=LPC, 1=HPC, 3=not fitted
+        # clock dir    : 0=M2C, 1=C2M
+        # nb sig P1 A  : number
+        # nb sig P1 B  : number
+        # nb sig P2 A  : number
+        # nb sig P2 B  : number
+        # nb GBT P1    : number
+        # nb GBT P2    : number
+        # max TCK freq : frequency in MHz
+        self.oem = OEMRecord(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)            
+
+
+class FruGeneratorFmc(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)    
+        # possible general common FMC things here.
+
+
+# product specific classes:
+# put product specific defaults, [nchan, mtype but also dcloadX when ready]
+
+
+class ACQ420FMC(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "01"
+        main(self, argv)
+
+
+class ACQ420ELF(FruGeneratorElf):
+    def __init__(self, name, argv):
+        FruGeneratorElf.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "01"
+        main(self, argv)
+        
+class ACQ425ELF(FruGeneratorElf):
+    def __init__(self, name, argv):
+        FruGeneratorElf.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "05"
+        main(self, argv)        
+
+class ACQ430FMC(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)
+        self.nchan = 8
+        self.mtype = "03"
+        main(self, argv)
+
+
+class ACQ430ELF(FruGeneratorElf):
+    def __init__(self, name, argv):
+        FruGeneratorElf.__init__(self, name, argv)
+        self.nchan = 8
+        self.mtype = "03"
+        FruGenerator.main(self, argv)
+
+class ACQ435ELF(FruGeneratorElf):
+    def __init__(self, name, argv):
+        FruGeneratorElf.__init__(self, name, argv)
+        self.nchan = 32
+        self.mtype = "02"
+        main(self, argv)
+
+class ACQ440FMC(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "04"
+        main(self, argv)
+
+class AO420FMC(FruGenerator):
+    def __init__(self, name, argv):
+        FruGenerator.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "40"
+        main(self, argv)
+
+class AO420ELF(FruGenerator):
+    def __init__(self, name, argv):
+        FruGeneratorElf.__init__(self, name, argv)
+        self.nchan = 4
+        self.mtype = "40"
+        main(self, argv)
+   
+fundict = {
+    'ACQ420FMC' : ACQ420FMC,
+    'ACQ420ELF' : ACQ420ELF,
+    'ACQ425ELF' : ACQ425ELF,
+    'ACQ430FMC' : ACQ430FMC,
+    'ACQ430ELF' : ACQ430ELF,
+    'ACQ435ELF' : ACQ435ELF,
+    'ACQ440FMC' : ACQ440FMC,    
+    'AO420FMC'  : AO420FMC,
+    'AO420ELF'  : AO420ELF,
+}  
+if __name__ == '__main__' :
+
+    try:
+        opts, args = fru_getopt(sys.argv[1:])                
+    except getopt.GetoptError:
+        print "fru-generator: wrong arguments"
+        sys.exit(2) 
+    for opt, arg in opts:        
+        if opt == "--help":
+            help()
+            sys.exit(1)        
+
+    print opts
+    print args
+
+    try:
+        btype = args[0].split('-')[0]
+    except IndexError:
+        print("frugen: must specify part")
+        sys.exit(1)
+    
+
+    try:    
+        fg = fundict[btype](btype, sys.argv[1:])
+    except KeyError:
+        print "ERROR: product type %s not found" % (btype)
+        print "available products are:"
+        for key in fundict.keys():
+            print key 
+        sys.exit(1)
+        
+
+            
+    
+    for uut in args[1:]:
+        fg.FRU_SERIAL = uut
+        fg.write(uut)
