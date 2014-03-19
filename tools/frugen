@@ -201,7 +201,11 @@ class FruGeneratorFmc(FruGenerator):
 class ACQ420FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
-        self.set_NchanMtypeFmt( 4, "01", "E4201%04d")
+	if part.split('-')[2] == "2000" :
+		print "generating special module type A1"
+        	self.set_NchanMtypeFmt( 4, "A1", "E4201%04d")
+	else:
+	        self.set_NchanMtypeFmt( 4, "01", "E4201%04d")
 
 class ACQ420ELF(FruGeneratorElf):
     def __init__(self, name, part):
