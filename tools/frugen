@@ -260,7 +260,12 @@ class AO421ELF(FruGeneratorElf):
     def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
         self.set_NchanMtypeFmt(40, "ff", "E4210%04d")
-        
+       
+class BOLO8BLF(FruGeneratorElf):
+    def __init__(self, name, part):
+	FruGeneratorElf.__init__(self, name, part)
+	self.set_NchanMtypeFmt( 8, "60", "BE401%04d")
+   
                 
    
    
