@@ -280,6 +280,7 @@ fundict = {
     'AO420FMC'  : AO420FMC,
     'AO420ELF'  : AO420ELF,
     'AO421ELF'  : AO421ELF,
+    'BOLO8BLF'  : BOLO8BLF,
 }  
 
 if __name__ == '__main__' :
