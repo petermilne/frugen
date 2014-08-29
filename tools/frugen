@@ -220,7 +220,11 @@ class ACQ420ELF(FruGeneratorElf):
 class ACQ425ELF(FruGeneratorElf):
     def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
-        self.set_NchanMtypeFmt(16, "05", "E4251%04d")        
+        if part.split('-')[2] == "2000" :
+                print "generating special module type A5"
+                self.set_NchanMtypeFmt( 16, "A5", "E4251%04d")
+        else:
+                self.set_NchanMtypeFmt( 16, "05", "E4251%04d")
 
 class ACQ430FMC(FruGeneratorFmc):
     def __init__(self, name, part):
@@ -269,6 +273,16 @@ class BOLO8BLF(FruGeneratorElf):
 	FruGeneratorElf.__init__(self, name, part)
 	self.set_NchanMtypeFmt( 8, "60", "BE401%04d")
 
+class DIO432FMC(FruGeneratorFmc):
+    def __init__(self, name, part):
+	FruGeneratorFmc.__init__(self, name, part)
+	self.set_NchanMtypeFmt( 32, "61", "F4322%04d")
+
+class DIO432ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+	FruGeneratorElf.__init__(self, name, part)
+	self.set_NchanMtypeFmt( 32, "61", "E4322%04d")
+
    
    
 fundict = {
@@ -284,6 +298,8 @@ fundict = {
     'AO421ELF'  : AO421ELF,
     'AO424ELF'  : AO424ELF,
     'BOLO8BLF'  : BOLO8BLF,
+    'DIO432FMC' : DIO432FMC,
+    'DIO432ELF' : DIO432ELF,
 }  
 
 if __name__ == '__main__' :
