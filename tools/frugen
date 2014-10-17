@@ -299,6 +299,7 @@ class PMODADC1(FruGeneratorElf):
     def __init__(self, name, part):
 	FruGeneratorElf.__init__(self, name, part)
 	self.set_NchanMtypeFmt( 2, "63", "P4401%04d")
+	self.FRU_VENDOR = "DIGILENT"
 
    
 fundict = {
