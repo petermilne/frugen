@@ -288,7 +288,18 @@ class DIO432ELF(FruGeneratorElf):
 	FruGeneratorElf.__init__(self, name, part)
 	self.set_NchanMtypeFmt( 32, "61", "E4322%04d")
 
-   
+  
+class DIO432PMOD(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, name, part)
+       self.set_NchanMtypeFmt( 32, "62", "P4322%04d")
+
+ 
+class PMODADC1(FruGeneratorElf):
+    def __init__(self, name, part):
+	FruGeneratorElf.__init__(self, name, part)
+	self.set_NchanMtypeFmt( 2, "63", "P4401%04d")
+
    
 fundict = {
     'ACQ420FMC' : ACQ420FMC,
@@ -306,6 +317,8 @@ fundict = {
     'BOLO8BLF'  : BOLO8BLF,
     'DIO432FMC' : DIO432FMC,
     'DIO432ELF' : DIO432ELF,
+    'DIO432PMOD' : DIO432PMOD,
+    'PMODADC1' : PMODADC1,
 }  
 
 if __name__ == '__main__' :
