@@ -216,6 +216,11 @@ class ACQ420ELF(FruGeneratorElf):
         	self.set_NchanMtypeFmt( 4, "A1", "E4201%04d")
 	else:
 	        self.set_NchanMtypeFmt( 4, "01", "E4201%04d")
+
+class ACQ424ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        self.set_NchanMtypeFmt( 32, "04", "E4241%04d")
         
 class ACQ425ELF(FruGeneratorElf):
     def __init__(self, name, part):
@@ -229,12 +234,24 @@ class ACQ425ELF(FruGeneratorElf):
 class ACQ430FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
-        self.set_NchanMtypeFmt( 8, "03", "F4301%04d")         
+	# Rev A
+        #self.set_NchanMtypeFmt( 8, "03", "F4301%04d")    
+	# Rev B
+	if part.split('-')[1] == "4" :
+        	self.set_NchanMtypeFmt( 4, "03", "F4311%04d") 
+        else:
+        	self.set_NchanMtypeFmt( 8, "03", "F4311%04d")         
 
 class ACQ430ELF(FruGeneratorElf):
     def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
-        self.set_NchanMtypeFmt( 8, "03", "E4301%04d")   
+	# Rev A
+        #self.set_NchanMtypeFmt( 8, "03", "E4301%04d")   
+	# Rev B
+	if part.split('-')[1] == "4" :
+        	self.set_NchanMtypeFmt( 4, "03", "E4311%04d") 
+        else:
+        	self.set_NchanMtypeFmt( 8, "03", "E4311%04d")  
 
 class ACQ435ELF(FruGeneratorElf):
     def __init__(self, name, part):
@@ -249,14 +266,17 @@ class ACQ437ELF(FruGeneratorElf):
 class ACQ480FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
-        self.set_NchanMtypeFmt( 8, "04", "F4801%04d")
-        
+        self.set_NchanMtypeFmt( 8, "08", "F4801%04d")
+ 
+class ACQ480ELF(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
 
 class AO420FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
         self.set_NchanMtypeFmt( 4, "40", "F4200%04d")
-        
 
 class AO420ELF(FruGeneratorElf):
     def __init__(self, name, part):
@@ -276,7 +296,10 @@ class AO424ELF(FruGeneratorElf):
 class BOLO8BLF(FruGeneratorElf):
     def __init__(self, name, part):
 	FruGeneratorElf.__init__(self, name, part)
-	self.set_NchanMtypeFmt( 8, "60", "BE401%04d")
+	# Rev A	
+	#self.set_NchanMtypeFmt( 8, "60", "BE401%04d")
+	# Rev B	
+	self.set_NchanMtypeFmt( 8, "64", "BE401%04d")
 
 class DIO432FMC(FruGeneratorFmc):
     def __init__(self, name, part):
@@ -294,6 +317,12 @@ class DIO432PMOD(FruGeneratorElf):
        FruGeneratorElf.__init__(self, name, part)
        self.set_NchanMtypeFmt( 32, "62", "P4322%04d")
 
+  
+class MTCA(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "ACQ400-MTCA-RTM-2", "ACQ400-MTCA-RTM-2")
+       self.set_NchanMtypeFmt( 0, "FC", "CM402%04d")
+
  
 class PMODADC1(FruGeneratorElf):
     def __init__(self, name, part):
@@ -301,16 +330,46 @@ class PMODADC1(FruGeneratorElf):
 	self.set_NchanMtypeFmt( 2, "63", "P4401%04d")
 	self.FRU_VENDOR = "DIGILENT"
 
+class MGT482(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+	if part.split('-')[1] == "SFP4" :
+        	self.set_NchanMtypeFmt( 4, "90", "AM482%04d")
+        else:
+        	self.set_NchanMtypeFmt( 8, "90", "AM482%04d")
+
+class ACQ400TEST(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+	if part.split('-')[1] == "ELF" :
+        	self.set_NchanMtypeFmt( 0, "FE", "E4009%04d")
+        else:
+                self.set_NchanMtypeFmt( 0, "FD", "F4009%04d")
+			 
+
+class BISCUIT_DIO(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "ACQ1002S-BP-1-DIO", "ACQ1002S-BP-1-DIO")
+       self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
+			 
+
+class BISCUIT_DIO_USB(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "ACQ1002S-BP-1-DIO-USB", "ACQ1002S-BP-1-DIO-USB")
+       self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
+
    
 fundict = {
     'ACQ420FMC' : ACQ420FMC,
     'ACQ420ELF' : ACQ420ELF,
     'ACQ425ELF' : ACQ425ELF,
+    'ACQ424ELF' : ACQ424ELF,
     'ACQ430FMC' : ACQ430FMC,
     'ACQ430ELF' : ACQ430ELF,
     'ACQ435ELF' : ACQ435ELF,
     'ACQ437ELF' : ACQ437ELF,
     'ACQ480FMC' : ACQ480FMC,    
+    'ACQ480ELF' : ACQ480ELF,    
     'AO420FMC'  : AO420FMC,
     'AO420ELF'  : AO420ELF,
     'AO421ELF'  : AO421ELF,
@@ -320,6 +379,11 @@ fundict = {
     'DIO432ELF' : DIO432ELF,
     'DIO432PMOD' : DIO432PMOD,
     'PMODADC1' : PMODADC1,
+    'MGT482' : MGT482,
+    'ACQ400TEST' : ACQ400TEST,
+    'MTCA' : MTCA,
+    'BISCUIT_DIO' : BISCUIT_DIO,
+    'BISCUIT_DIO_USB' : BISCUIT_DIO_USB,
 }  
 
 if __name__ == '__main__' :
