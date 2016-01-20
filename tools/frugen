@@ -345,17 +345,29 @@ class ACQ400TEST(FruGeneratorElf):
         	self.set_NchanMtypeFmt( 0, "FE", "E4009%04d")
         else:
                 self.set_NchanMtypeFmt( 0, "FD", "F4009%04d")
-			 
 
-class BISCUIT_DIO(FruGeneratorElf):
+# These are named after their function and given separate MODULE IDs to ensure the correct FPGA is loaded.			 
+
+#class BISCUIT_DIO(FruGeneratorElf):
+#    def __init__(self, name, part):
+#       FruGeneratorElf.__init__(self, "DIO Biscuit", "ACQ1002S-BP-1-DIO")
+#       self.set_NchanMtypeFmt( 4, "68", "AB411%04d")
+#			 
+#
+#class BISCUIT_DIO_USB(FruGeneratorElf):
+#    def __init__(self, name, part):
+#       FruGeneratorElf.__init__(self, "DIO Biscuit", "ACQ1002S-BP-1-DIO-USB")
+#       self.set_NchanMtypeFmt( 4, "68", "AB411%04d")
+	  
+class BISCUIT_V2F(FruGeneratorElf):
     def __init__(self, name, part):
-       FruGeneratorElf.__init__(self, "ACQ1002S-BP-1-DIO", "ACQ1002S-BP-1-DIO")
+       FruGeneratorElf.__init__(self, "V2F Biscuit", "ACQ1002S-BP-1-DIO")
        self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
 			 
 
-class BISCUIT_DIO_USB(FruGeneratorElf):
+class BISCUIT_V2F_USB(FruGeneratorElf):
     def __init__(self, name, part):
-       FruGeneratorElf.__init__(self, "ACQ1002S-BP-1-DIO-USB", "ACQ1002S-BP-1-DIO-USB")
+       FruGeneratorElf.__init__(self, "V2F Biscuit", "ACQ1002S-BP-1-DIO-USB")
        self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
 
    
@@ -382,8 +394,10 @@ fundict = {
     'MGT482' : MGT482,
     'ACQ400TEST' : ACQ400TEST,
     'MTCA' : MTCA,
-    'BISCUIT_DIO' : BISCUIT_DIO,
-    'BISCUIT_DIO_USB' : BISCUIT_DIO_USB,
+#    'BISCUIT_DIO' : BISCUIT_DIO,
+#    'BISCUIT_DIO_USB' : BISCUIT_DIO_USB,
+    'BISCUIT_V2F' : BISCUIT_V2F,
+    'BISCUIT_V2F_USB' : BISCUIT_V2F_USB,
 }  
 
 if __name__ == '__main__' :
