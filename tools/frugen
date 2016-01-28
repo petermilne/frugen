@@ -363,12 +363,16 @@ class BISCUIT_V2F(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "V2F Biscuit", "ACQ1002S-BP-1-DIO")
        self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
-			 
 
 class BISCUIT_V2F_USB(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "V2F Biscuit", "ACQ1002S-BP-1-DIO-USB")
        self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
+
+class PIG_CELF(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "PIG-CELF", "PIG-CELF")
+       self.set_NchanMtypeFmt( 0, "68", "AC402%04d")
 
    
 fundict = {
@@ -398,6 +402,7 @@ fundict = {
 #    'BISCUIT_DIO_USB' : BISCUIT_DIO_USB,
     'BISCUIT_V2F' : BISCUIT_V2F,
     'BISCUIT_V2F_USB' : BISCUIT_V2F_USB,
+    'PIG_CELF' : PIG_CELF,
 }  
 
 if __name__ == '__main__' :
