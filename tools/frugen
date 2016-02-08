@@ -269,9 +269,14 @@ class ACQ480FMC(FruGeneratorFmc):
         self.set_NchanMtypeFmt( 8, "08", "F4801%04d")
  
 class ACQ480ELF(FruGeneratorFmc):
-    def __init__(self, name, part):
-        FruGeneratorFmc.__init__(self, name, part)
-        self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
+     def __init__(self, name, part):
+		FruGeneratorFmc.__init__(self, name, part)
+	#if part.split('-')[1] == "LFP":
+	#	self.set_NchanMtypeFmt( 4, "08", "E4801%04d")
+	#elif part.split('-')[2] == "OEM":
+	#	self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
+	#else: 
+		self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
 
 class AO420FMC(FruGeneratorFmc):
     def __init__(self, name, part):
@@ -372,7 +377,7 @@ class BISCUIT_V2F_USB(FruGeneratorElf):
 class PIG_CELF(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "PIG-CELF", "PIG-CELF")
-       self.set_NchanMtypeFmt( 0, "68", "AC402%04d")
+       self.set_NchanMtypeFmt( 8, "68", "AC402%04d")
 
    
 fundict = {
