@@ -238,9 +238,9 @@ class ACQ430FMC(FruGeneratorFmc):
         #self.set_NchanMtypeFmt( 8, "03", "F4301%04d")    
 	# Rev B
 	if part.split('-')[1] == "4" :
-        	self.set_NchanMtypeFmt( 4, "03", "F4311%04d") 
+        	self.set_NchanMtypeFmt( 4, "03", "F4301%04d") 
         else:
-        	self.set_NchanMtypeFmt( 8, "03", "F4311%04d")         
+        	self.set_NchanMtypeFmt( 8, "03", "F4301%04d")         
 
 class ACQ430ELF(FruGeneratorElf):
     def __init__(self, name, part):
@@ -249,9 +249,9 @@ class ACQ430ELF(FruGeneratorElf):
         #self.set_NchanMtypeFmt( 8, "03", "E4301%04d")   
 	# Rev B
 	if part.split('-')[1] == "4" :
-        	self.set_NchanMtypeFmt( 4, "03", "E4311%04d") 
+        	self.set_NchanMtypeFmt( 4, "03", "E4301%04d") 
         else:
-        	self.set_NchanMtypeFmt( 8, "03", "E4311%04d")  
+        	self.set_NchanMtypeFmt( 8, "03", "E4301%04d")  
 
 class ACQ435ELF(FruGeneratorElf):
     def __init__(self, name, part):
@@ -271,8 +271,8 @@ class ACQ480FMC(FruGeneratorFmc):
 class ACQ480ELF(FruGeneratorFmc):
      def __init__(self, name, part):
 		FruGeneratorFmc.__init__(self, name, part)
-	#if part.split('-')[1] == "LFP":
-	#	self.set_NchanMtypeFmt( 4, "08", "E4801%04d")
+	#if part.split('-')[2] == "1V":
+	#	self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
 	#elif part.split('-')[2] == "OEM":
 	#	self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
 	#else: 
@@ -377,7 +377,12 @@ class BISCUIT_V2F_USB(FruGeneratorElf):
 class PIG_CELF(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "PIG-CELF", "PIG-CELF")
-       self.set_NchanMtypeFmt( 8, "68", "AC402%04d")
+       self.set_NchanMtypeFmt( 8, "68", "AP401%04d")
+
+class UWASH_MASTER(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "UWASH-MASTER", "UWASH-MASTER")
+       self.set_NchanMtypeFmt( 6, "FB", "UW_MSTR_%04d")
 
    
 fundict = {
@@ -408,6 +413,7 @@ fundict = {
     'BISCUIT_V2F' : BISCUIT_V2F,
     'BISCUIT_V2F_USB' : BISCUIT_V2F_USB,
     'PIG_CELF' : PIG_CELF,
+    'UWASH_MASTER' : UWASH_MASTER,
 }  
 
 if __name__ == '__main__' :
