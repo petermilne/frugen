@@ -382,7 +382,7 @@ class PIG_CELF(FruGeneratorElf):
 class RAD_CELF(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "RAD-CELF", "RAD-CELF")
-       self.set_NchanMtypeFmt( 0, "69", "AP402%04d")
+       self.set_NchanMtypeFmt( 0, "69", "AC403%04d")
 
 class UWASH_MASTER(FruGeneratorElf):
     def __init__(self, name, part):
