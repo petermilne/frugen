@@ -371,7 +371,7 @@ class BISCUIT_V2F(FruGeneratorElf):
 
 class BISCUIT_V2F_USB(FruGeneratorElf):
     def __init__(self, name, part):
-       FruGeneratorElf.__init__(self, "V2F Biscuit", "ACQ1002S-BP-1-DIO-USB")
+       FruGeneratorElf.__init__(self, "DIO-USB Biscuit", "ACQ1002S-BP-1-DIO-USB")
        self.set_NchanMtypeFmt( 4, "67", "AB411%04d")
 
 class PIG_CELF(FruGeneratorElf):
