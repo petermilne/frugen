@@ -265,7 +265,13 @@ class ACQ430ELF(FruGeneratorElf):
 class ACQ435ELF(FruGeneratorElf):
     def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
-        self.set_NchanMtypeFmt(32, "02", "E4351%04d")     
+	
+	if part.split('-')[1].startswith("8"):
+        	self.set_NchanMtypeFmt(8, "02", "E4351%04d")
+	elif part.split('-')[1].startswith("16"):
+		self.set_NchanMtypeFmt(16, "02", "E4351%04d")
+	else:
+        	self.set_NchanMtypeFmt(32, "02", "E4351%04d")     
 
 class ACQ437ELF(FruGeneratorElf):
     def __init__(self, name, part):
