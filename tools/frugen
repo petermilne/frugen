@@ -231,6 +231,15 @@ class ACQ425ELF(FruGeneratorElf):
         else:
                 self.set_NchanMtypeFmt( 16, "05", "E4251%04d")
 
+class ACQ425BLF(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+        if part.split('-')[2] == "2000" :
+                print "generating special module type A5"
+                self.set_NchanMtypeFmt( 16, "A5", "B4251%04d")
+        else:
+                self.set_NchanMtypeFmt( 16, "05", "B4251%04d")
+
 class ACQ430FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
@@ -398,6 +407,7 @@ fundict = {
     'ACQ420FMC' : ACQ420FMC,
     'ACQ420ELF' : ACQ420ELF,
     'ACQ425ELF' : ACQ425ELF,
+    'ACQ425BLF' : ACQ425BLF,
     'ACQ424ELF' : ACQ424ELF,
     'ACQ430FMC' : ACQ430FMC,
     'ACQ430ELF' : ACQ430ELF,
