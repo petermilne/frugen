@@ -403,6 +403,11 @@ class RAD_CELF(FruGeneratorElf):
        FruGeneratorElf.__init__(self, "RAD-CELF", "RAD-CELF")
        self.set_NchanMtypeFmt( 0, "69", "AC403%04d")
 
+class DAC_CELF(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, "DAC-CELF", "DAC-CELF")
+       self.set_NchanMtypeFmt( 8, "6a", "AC404%04d")
+
 class UWASH_MASTER(FruGeneratorElf):
     def __init__(self, name, part):
        FruGeneratorElf.__init__(self, "UWASH-MASTER", "UWASH-MASTER")
@@ -440,6 +445,7 @@ fundict = {
     'BISCUIT_V2F_USB' : BISCUIT_V2F_USB,
     'PIG_CELF' : PIG_CELF,
     'RAD_CELF' : RAD_CELF,
+    'DAC_CELF' : DAC_CELF,
     'UWASH_MASTER' : UWASH_MASTER,
 }  
 
