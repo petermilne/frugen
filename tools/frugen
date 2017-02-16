@@ -293,6 +293,11 @@ class ACQ480ELF(FruGeneratorFmc):
 	#else: 
 		self.set_NchanMtypeFmt( 8, "08", "E4801%04d")
 
+class FMC104(FruGeneratorFmc):
+    def __init__(self, name, part):
+        FruGeneratorFmc.__init__(self, name, part)
+        self.set_NchanMtypeFmt( 4, "07", "F1040%04d")
+
 class AO420FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
@@ -425,6 +430,7 @@ fundict = {
     'ACQ435ELF' : ACQ435ELF,
     'ACQ437ELF' : ACQ437ELF,
     'ACQ480FMC' : ACQ480FMC,    
+    'FMC104'    : FMC104,
     'ACQ480ELF' : ACQ480ELF,    
     'AO420FMC'  : AO420FMC,
     'AO420ELF'  : AO420ELF,
