@@ -346,6 +346,10 @@ class DIO432PMOD(FruGeneratorElf):
        FruGeneratorElf.__init__(self, name, part)
        self.set_NchanMtypeFmt( 32, "62", "P4322%04d")
 
+class DIO482ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, name, part)
+       self.set_NchanMtypeFmt( 32, "6B", "E4822%04d")
   
 class MTCA(FruGeneratorElf):
     def __init__(self, name, part):
@@ -374,6 +378,12 @@ class ACQ400TEST(FruGeneratorElf):
         	self.set_NchanMtypeFmt( 0, "FE", "E4009%04d")
         else:
                 self.set_NchanMtypeFmt( 0, "FD", "F4009%04d")
+
+class ACQ400DATAGEN(FruGeneratorElf):
+    def __init__(self, name, part):
+       FruGeneratorElf.__init__(self, name, part)
+       self.set_NchanMtypeFmt( 0, "fa", "E4109%04d")
+  
 
 # These are named after their function and given separate MODULE IDs to ensure the correct FPGA is loaded.			 
 
@@ -441,9 +451,11 @@ fundict = {
     'DIO432ELF' : DIO432ELF,
     'DIO432ELF_OC' : DIO432ELF_OC,
     'DIO432PMOD' : DIO432PMOD,
+    'DIO482ELF'  : DIO482ELF,
     'PMODADC1' : PMODADC1,
     'MGT482' : MGT482,
     'ACQ400TEST' : ACQ400TEST,
+   'ACQ400DATAGEN' : ACQ400DATAGEN,
     'MTCA' : MTCA,
 #    'BISCUIT_DIO' : BISCUIT_DIO,
 #    'BISCUIT_DIO_USB' : BISCUIT_DIO_USB,
