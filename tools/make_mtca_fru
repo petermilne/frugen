@@ -1,0 +1,17 @@
+#!/bin/bash
+# build FRU 21 .. 99
+
+cd FRU
+
+for SN in $(seq 21 99)
+do
+	sed -e "s/CM4020020/CM40200$SN/g" < CM4020020.fru > CM40200$SN.fru
+done
+
+
+for file in FRU/*
+do
+/home/dt100/PROJECTS/ACQ400/frutoolz/fru-fix $file
+done
+
+

@@ -353,6 +353,8 @@ class DIO482ELF(FruGeneratorElf):
   
 class MTCA(FruGeneratorElf):
     def __init__(self, name, part):
+       print("ERROR: use /home/projects/ACQ400/ACQ400-MTCA-RTM-2/make_mtca_fru")
+       exit(1)
        FruGeneratorElf.__init__(self, "ACQ400-MTCA-RTM-2", "ACQ400-MTCA-RTM-2")
        self.set_NchanMtypeFmt( 0, "FC", "CM402%04d")
 
