@@ -374,7 +374,7 @@ class MGT482(FruGeneratorElf):
         	self.set_NchanMtypeFmt( 8, "90", "AM482%04d")
 
 class MGTDRAM(FruGeneratorElf):
-    def __iinit__(self, name, part):
+    def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
 	self.set_NchanMtypeFmt(
 		16 if part.split('-')[1] == '16' else 8,
