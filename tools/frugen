@@ -373,6 +373,14 @@ class MGT482(FruGeneratorElf):
         else:
         	self.set_NchanMtypeFmt( 8, "90", "AM482%04d")
 
+class MGTDRAM(FruGeneratorElf):
+    def __iinit__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+	self.set_NchanMtypeFmt(
+		16 if part.split('-')[1] == '16' else 8,
+		"95", "AM483%04d")
+
+		
 class ACQ400TEST(FruGeneratorElf):
     def __init__(self, name, part):
         FruGeneratorElf.__init__(self, name, part)
@@ -456,6 +464,7 @@ fundict = {
     'DIO482ELF'  : DIO482ELF,
     'PMODADC1' : PMODADC1,
     'MGT482' : MGT482,
+    'MGTDRAM' : MGTDRAM,
     'ACQ400TEST' : ACQ400TEST,
    'ACQ400DATAGEN' : ACQ400DATAGEN,
     'MTCA' : MTCA,
