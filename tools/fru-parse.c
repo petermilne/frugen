@@ -9,6 +9,14 @@
  */
 #include <linux/ipmi-fru.h>
 
+static inline struct fru_board_info_area *fru_get_product_area(
+        const struct fru_common_header *header)
+{
+        /* we know for sure that the header is 8 bytes in size */
+        return (struct fru_board_info_area *)(header + header->product_area_off);
+}
+
+
 /* Some internal helpers */
 static struct fru_type_length *
 __fru_get_board_tl(struct fru_common_header *header, int nr)

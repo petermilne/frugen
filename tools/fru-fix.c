@@ -80,14 +80,21 @@ int main(int argc, char **argv)
 			fprintf(stderr, "%s: not a FRU file\n", fname);
 			continue;
 		}
+		fprintf(stderr, "header ..\n");
 		if (!fru_header_cksum_ok(h)) {
 			fprintf(stderr, "%s: wrong header checksum\n", fname);
 		}
+		fprintf(stderr, "board_area ..\n");
 		bia = fru_get_board_area(h);
 		if (!fru_bia_cksum_ok(bia)) {
 			fprintf(stderr, "%s: wrong board area checksum\n",
 				fname);
 		}
+		fprintf(stderr, "product_area ..\n");
+		bia = fru_get_product_area(h);
+                if (!fru_bia_cksum_ok(bia)) {
+                       fprintf(stderr, "%s: wrong product area checksum\n", fname);
+                }
 
 		if (fixup){
 			rewind(f);

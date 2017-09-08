@@ -16,7 +16,12 @@
 #include <sys/stat.h>
 #include <linux/ipmi-fru.h>
 
+#ifdef PGMCOMOUT
 #include "../kernel/fru-parse.c" /* Aaaargh!!!!! horrible hack... */
+#else
+#include "fru-parse.c"
+#endif
+
 
 void *fru_alloc(size_t size)
 {
