@@ -240,6 +240,13 @@ class ACQ425BLF(FruGeneratorElf):
         else:
                 self.set_NchanMtypeFmt( 16, "05", "B4251%04d")
 
+# ignore AO count, device driver will suss it from subtype
+class ACQ427ELF(FruGeneratorElf):
+    def __init__(self, name, part):
+        FruGeneratorElf.__init__(self, name, part)
+	subtype = part.split('-')[1]
+	self.set_NchanMtypeFmt( 4 if subtype=='02' else 8, "6C", "E4273%04d")
+
 class ACQ430FMC(FruGeneratorFmc):
     def __init__(self, name, part):
         FruGeneratorFmc.__init__(self, name, part)
@@ -445,6 +452,7 @@ fundict = {
     'ACQ425ELF' : ACQ425ELF,
     'ACQ425BLF' : ACQ425BLF,
     'ACQ424ELF' : ACQ424ELF,
+    'ACQ427ELF' : ACQ427ELF,
     'ACQ430FMC' : ACQ430FMC,
     'ACQ430ELF' : ACQ430ELF,
     'ACQ435ELF' : ACQ435ELF,
