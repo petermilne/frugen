@@ -24,4 +24,9 @@ fru/E42730042.fru: product-name: ACQ427ELF
 fru/E42730042.fru: serial-number: E42730042
 fru/E42730042.fru: part-number: ACQ427ELF-03-1000-18 N=8 M=6C
 ```
+Where
+- N=8 : Number of channels = 8
+-- ACQ427 is a special case because it may have AO channels as well, additional decode on the -03- field required.
+- M=6C : Module type 0x6c (to select FPGA personality)
+
 
